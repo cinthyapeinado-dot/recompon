@@ -1,183 +1,143 @@
-# GymApp
+# Recompón
 
-GymApp es una PWA mobile-first que funciona como coach de entrenamiento personal para gimnasio. No está pensada como un listado de rutinas, sino como una experiencia guiada, enfocada en acompañar a la usuaria ejercicio por ejercicio con contexto, recomendaciones y progreso persistente.
+Recompón es una PWA premium de entrenamiento para gimnasio, pensada para usarse como una app mobile-first en iPhone y Android. La experiencia guía la sesión paso a paso, guarda el progreso en local, registra pesos por ejercicio y mantiene historial, estadísticas, cronómetro de descanso y soporte de instalación como app.
 
 ## Stack
 
 - React 18
 - Vite 5
-- TypeScript
-- Tailwind CSS
+- TypeScript 5
+- Tailwind CSS 3
 - LocalStorage para persistencia local
-- `manifest.json` + `service worker` para instalación PWA
-- Configuración lista para Vercel
+- `manifest.json` + `service worker` para PWA instalable
+- Vitest para pruebas unitarias
+- Vercel para despliegue
 
-## Qué hace hoy
+## Funcionalidades actuales
 
-- Home minimalista estilo app nativa con saludo, semana actual y CTA principal.
-- Check-in diario rápido para registrar sueño, energía, molestias y tiempo disponible.
-- Recomendaciones inteligentes que explican por qué conviene mantener o ajustar la sesión.
-- Modo entrenamiento guiado con un ejercicio por pantalla.
-- Registro por ejercicio de series, peso, RPE y zona donde se sintió el movimiento.
-- Conversión automática entre kg y lb.
-- Cronómetro de descanso con aviso local y vibración cuando termina.
-- Historial por sesión con fecha, pesos, RPE y mini evolución.
-- Calendario con sesiones completadas, racha, volumen semanal y sesiones del mes.
-- Estadísticas con semanas activas, mejor semana, mejores pesos y fase del programa.
-- Ajustes para cambiar la semana actual, probar notificaciones y reiniciar el progreso.
+- Home con saludo, semana actual y acceso rápido al entrenamiento del día.
+- Agenda semanal con sesiones de fuerza, descanso activo y descanso total.
+- Check-in diario previo al entrenamiento.
+- Modo entrenamiento guiado con registro de series, RPE, zona sentida y peso.
+- Conversión automática de pesos entre kg y lb.
+- Cronómetro de descanso con soporte para notificaciones locales.
+- Historial por sesión y estadísticas de progreso.
+- Calendario con sesiones completadas.
+- Persistencia completa del progreso en `localStorage`.
+- Instalación PWA con iconos, splash screens y modo standalone.
 
-## Perfil de la usuaria incorporado
+## Sistema visual de ejercicios
 
-La lógica del producto recuerda permanentemente este contexto:
+La rutina vive en `src/data/workouts.ts`. Cada ejercicio puede declarar:
 
-- mujer
-- 5 días de entrenamiento por semana
-- hace Pilates
-- nivel principiante-intermedio
-- todavía no levanta cargas altas
-- antecedentes de bypass gástrico
-- rodillas sensibles
-- preferencia por movimientos de bajo impacto
-- gimnasio con máquinas mezcladas entre kg y lb
+- `mediaKey`
+- `externalExerciseId`
+- `muscleGroup`
+- `equipment`
+- `difficulty`
+- `kneeFriendly`
 
-## Scripts
+La resolución del recurso visual se centraliza en `src/services/exerciseMedia.ts` y sigue este orden:
+
+1. Archivo local `demo.mp4`
+2. Archivo local `demo.gif`
+3. Compatibilidad heredada con `animation.mp4` o `animation.gif`
+4. Recurso remoto desde ExerciseDB (`https://oss.exercisedb.dev/api/v1`)
+5. `preview.png`, `preview.jpg` o `preview.webp`
+6. Fallback limpio con el texto `Animación disponible próximamente`
+
+Estructura local esperada:
+
+```text
+src/assets/exercises/
+  lat-pulldown/
+    demo.gif
+    preview.png
+  hip-thrust/
+    demo.mp4
+    preview.png
+```
+
+Detalles importantes del resolver:
+
+- No usa el ícono de la app como contenido del ejercicio.
+- Si ExerciseDB no responde, la app no se rompe.
+- La caché de medios remotos vive sólo en memoria durante la sesión actual.
+- El fallback evita textos técnicos y mantiene una salida visual limpia.
+
+## Requisitos
+
+- Node.js 20 o superior
+- npm 10 o superior recomendado
+
+## Correr localmente
 
 ```bash
 npm install
 npm run dev
-npm run typecheck
+```
+
+La app quedará disponible en la URL local que indique Vite, normalmente `http://localhost:5173`.
+
+## Build de producción
+
+```bash
 npm run build
 ```
 
-## Estructura clave
+Esto ejecuta:
 
-```text
-public/
-  manifest.json
-  sw.js
-  favicon.ico
-  apple-touch-icon.png
-  icons/
+- typecheck de la app
+- typecheck de `vite.config.ts`
+- build de Vite a `dist/`
 
-src/
-  components/
-  data/
-    athleteProfile.ts
-    workouts.ts
-  hooks/
-  screens/
-    HomeScreen.tsx
-    CheckInScreen.tsx
-    AgendaScreen.tsx
-    WorkoutScreen.tsx
-    ProgressionScreen.tsx
-    SettingsScreen.tsx
-  utils/
-    progress.ts
-    recommendations.ts
-    session.ts
-    training.ts
-    units.ts
-  App.tsx
-  index.css
-  main.tsx
+## Pruebas
+
+```bash
+npm run test
 ```
-
-## Arquitectura rápida
-
-- `src/App.tsx` controla navegación interna, estado principal, notificaciones y persistencia.
-- `src/data/workouts.ts` define rutina, fases del programa y metadatos de ejercicios.
-- `src/data/athleteProfile.ts` concentra restricciones permanentes de la usuaria.
-- `src/utils/progress.ts` normaliza el estado guardado y migra datos viejos sin perder historial.
-- `src/utils/recommendations.ts` genera recomendaciones por ejercicio y ajustes de sesión.
-- `src/utils/session.ts` arma el estado operativo de cada ejercicio para el modo guiado.
-- `src/utils/training.ts` calcula historial, rachas, volumen, mejores pesos y métricas.
-
-## PWA
-
-El proyecto ya incluye:
-
-- `public/manifest.json` configurado para instalación standalone
-- `public/sw.js` para caché del app shell
-- iconos `192x192` y `512x512`
-- `theme-color` y metadatos móviles en `index.html`
-- registro del service worker en `src/main.tsx`
 
 ## Despliegue en Vercel
 
-La configuración ya está lista:
+El proyecto ya está preparado para Vercel con `vercel.json`.
 
-- `npm run build`
-- `vite.config.ts`
-- `vercel.json`
-- `manifest.json`
-- `service worker`
-- favicon e iconos
-
-Valores esperados en Vercel:
+Configuración esperada:
 
 - Install Command: `npm install`
 - Build Command: `npm run build`
 - Output Directory: `dist`
 
-## Publicar en GitHub paso a paso
+Flujo recomendado:
 
-1. Crea un repositorio vacío en GitHub.
-2. Abre la terminal en la raíz del proyecto.
-3. Si hace falta, inicializa Git:
+1. Sube el repositorio a GitHub.
+2. Importa el repositorio en Vercel.
+3. Verifica que Vercel detecte los comandos anteriores.
+4. Ejecuta el primer deploy.
+5. A partir de ese momento, cada push a `main` genera un nuevo deployment automáticamente.
 
-```bash
-git init
-```
+Actualmente la app está pensada para desplegarse como SPA estática y no requiere variables de entorno para funcionar.
 
-4. Agrega el remoto:
+## Archivos clave de PWA y branding público
 
-```bash
-git remote add origin https://github.com/TU-USUARIO/recompon.git
-```
+- `index.html`: `title`, meta tags, `application-name`, `theme-color`
+- `public/manifest.json`: nombre público, colores, iconos y shortcuts
+- `public/sw.js`: caché del app shell
+- `public/icons/`: iconos para Android/PWA
+- `public/apple-touch-icon*.png`: iconos de instalación en iPhone/iPad
+- `public/startup/`: splash screens para iOS
 
-5. Agrega los archivos:
+## Persistencia local
 
-```bash
-git add .
-```
+- Clave principal: `recompon-progress-v1`
+- El progreso se guarda completamente en `localStorage`
+- No hay backend ni sincronización remota en el estado actual
 
-6. Crea un commit:
+## Desarrollo y mantenimiento
 
-```bash
-git commit -m "feat: premium training coach experience"
-```
+- Si cambias `manifest.json`, iconos, `index.html` o `sw.js`, vuelve a correr `npm run build`.
+- Si agregas nuevos ejercicios, reutiliza `mediaKey` y la carpeta correspondiente dentro de `src/assets/exercises/`.
+- Si un ejercicio no tiene media local, la app intentará resolverlo con ExerciseDB antes de mostrar el fallback limpio.
 
-7. Sube la rama principal:
+## Producción
 
-```bash
-git branch -M main
-git push -u origin main
-```
-
-## Desplegar en Vercel paso a paso
-
-1. Entra a [Vercel](https://vercel.com).
-2. Inicia sesión con tu cuenta de GitHub.
-3. Haz clic en `Add New...`.
-4. Selecciona `Project`.
-5. Importa el repositorio `recompon`.
-6. Revisa que Vercel use:
-   - `npm install`
-   - `npm run build`
-   - `dist`
-7. Haz clic en `Deploy`.
-8. Espera a que termine el build.
-9. Abre la URL pública generada.
-10. Valida en celular:
-   - instalación PWA
-   - manifest
-   - service worker
-   - notificaciones locales con permiso otorgado
-   - layout en iPhone
-
-## Notas
-
-- El progreso se guarda en `localStorage` con la clave `recompon-progress-v1`.
-- Las notificaciones locales dependen del permiso del navegador y no se muestran si la plataforma no las soporta.
-- Si cambias `manifest.json`, iconos o `sw.js`, vuelve a correr `npm run build` antes de publicar.
+- URL pública: [recompon.vercel.app](https://recompon.vercel.app/)

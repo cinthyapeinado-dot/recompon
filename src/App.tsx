@@ -53,7 +53,7 @@ import {
 } from "./utils/units";
 
 const STORAGE_KEY = "recompon-progress-v1";
-const APP_NAME = "GymApp";
+const APP_NAME = "Recompón";
 const NOTIFICATION_ICON = "/icons/icon-192.png";
 
 type NotificationPermissionState = NotificationPermission | "unsupported";

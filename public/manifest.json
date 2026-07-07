@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "GymApp",
-  "short_name": "GymApp",
-  "description": "GymApp es un coach de entrenamiento premium para gimnasio con seguimiento inteligente, pesos, descanso y progreso.",
+  "name": "Recompón",
+  "short_name": "Recompón",
+  "description": "Recompón es una app premium de entrenamiento para gimnasio con progreso local, historial, pesos, descanso y demostraciones de ejercicios.",
   "lang": "es-MX",
   "start_url": "/",
   "scope": "/",

@@ -85,7 +85,7 @@ body::after {
 }
 
 #root:empty::after {
-  content: "GymApp";
+  content: "Recompón";
   position: absolute;
   left: 50%;
   top: 50%;
