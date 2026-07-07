@@ -1,5 +1,6 @@
 import type { WorkoutHistoryEntry } from "../types";
 import { formatHistoryDate } from "../utils/date";
+import { formatVolumeKgLabel } from "../utils/training";
 
 type HistoryListProps = {
   emptyCopy: string;
@@ -43,7 +44,7 @@ export const HistoryList = ({
             <span className="badge-soft">{formatHistoryDate(entry.calendarDate)}</span>
             <span className="badge-soft">{entry.checkedExerciseIds.length} ejercicios</span>
             <span className="badge-soft">
-              {entry.totalVolumeKg != null ? `${Math.round(entry.totalVolumeKg)} kg` : "Sin volumen"}
+              {entry.totalVolumeKg != null ? formatVolumeKgLabel(entry.totalVolumeKg) : "Sin volumen"}
             </span>
           </div>
 

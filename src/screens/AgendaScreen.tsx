@@ -12,6 +12,7 @@ import {
   shiftMonth
 } from "../utils/date";
 import {
+  formatVolumeKgLabel,
   getCurrentStreak,
   getMonthlySessionCount,
   getWeeklyVolumeKg,
@@ -55,7 +56,7 @@ export const AgendaScreen = ({
       <SectionIntro
         eyebrow={`Semana ${currentWeek}`}
         title="Calendario y carga"
-        description="Aquí ves qué días ya quedaron hechos, cuánto volumen moviste y cómo viene la constancia."
+        description="Aqui ves que dias ya quedaron hechos, cuanto volumen moviste y como viene la constancia."
         side={<span className="badge-soft">{completedDays.length}/7</span>}
       />
 
@@ -73,38 +74,46 @@ export const AgendaScreen = ({
         <div className="grid grid-cols-2 gap-3">
           <div className="metric-tile px-4 py-4">
             <p className="eyebrow">Racha</p>
-            <p className="mt-2 text-[1.35rem] font-semibold text-fog-100">{streak} días</p>
-            <p className="mt-2 text-sm leading-6 text-fog-300">Días seguidos con sesiones guardadas.</p>
+            <p className="mt-2 text-[1.35rem] font-semibold text-fog-100">{streak} dias</p>
+            <p className="mt-2 text-sm leading-6 text-fog-300">
+              Dias seguidos con sesiones guardadas.
+            </p>
           </div>
           <div className="metric-tile metric-tile-tint px-4 py-4">
             <p className="eyebrow">Volumen semanal</p>
             <p className="mt-2 text-[1.35rem] font-semibold text-fog-100">
-              {weeklyVolume > 0 ? `${Math.round(weeklyVolume)} kg` : "Sin dato"}
+              {weeklyVolume > 0 ? formatVolumeKgLabel(weeklyVolume) : "Sin dato"}
             </p>
-            <p className="mt-2 text-sm leading-6 text-fog-300">Estimación basada en las series completadas.</p>
+            <p className="mt-2 text-sm leading-6 text-fog-300">
+              Estimacion basada en las series completadas.
+            </p>
           </div>
           <div className="metric-tile px-4 py-4">
             <p className="eyebrow">Mes actual</p>
-            <p className="mt-2 text-[1.35rem] font-semibold text-fog-100">{monthlySessions} sesiones</p>
-            <p className="mt-2 text-sm leading-6 text-fog-300">Entrenamientos registrados este mes.</p>
+            <p className="mt-2 text-[1.35rem] font-semibold text-fog-100">
+              {monthlySessions} sesiones
+            </p>
+            <p className="mt-2 text-sm leading-6 text-fog-300">
+              Entrenamientos registrados este mes.
+            </p>
           </div>
           <div className="metric-tile px-4 py-4">
-            <p className="eyebrow">Día seleccionado</p>
+            <p className="eyebrow">Dia seleccionado</p>
             <p className="mt-2 text-[1.35rem] font-semibold text-fog-100">
               {formatHistoryDate(selectedDateKey)}
             </p>
             <p className="mt-2 text-sm leading-6 text-fog-300">
               {selectedEntries.length > 0
-                ? `${selectedEntries.length} sesión(es) en esa fecha.`
-                : "Aún no hay sesión guardada ese día."}
+                ? `${selectedEntries.length} sesion(es) en esa fecha.`
+                : "Aun no hay sesion guardada ese dia."}
             </p>
           </div>
         </div>
 
         <HistoryList
-          title="Detalle del día"
+          title="Detalle del dia"
           entries={selectedEntries}
-          emptyCopy="Cuando entrenes en esta fecha, aquí verás el resumen de esa sesión."
+          emptyCopy="Cuando entrenes en esta fecha, aqui veras el resumen de esa sesion."
           onOpenEntry={onOpenHistoryEntry}
         />
       </Card>

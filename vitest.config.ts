@@ -1,23 +1,16 @@
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
-  appType: "spa",
   plugins: [react()],
   resolve: {
     alias: {
       "lottie-web": "lottie-web/build/player/lottie_light.js"
     }
   },
-  server: {
-    host: true
-  },
-  preview: {
-    host: true
-  },
-  build: {
-    assetsDir: "assets",
-    outDir: "dist",
-    target: "es2020"
+  test: {
+    environment: "jsdom",
+    globals: true,
+    setupFiles: ["./src/test/setup.ts"]
   }
 });

@@ -36,7 +36,7 @@ import {
 import {
   computeExerciseVolumeKg,
   getExerciseSparklinePoints,
-  getLatestExerciseLog,
+  getLatestExerciseLog
 } from "./utils/training";
 import {
   createExerciseState,
@@ -44,7 +44,13 @@ import {
   getWeightSummary,
   isExerciseComplete
 } from "./utils/session";
-import { convertWeight, parseWeightValue } from "./utils/units";
+import {
+  convertWeight,
+  convertWeightInputValue,
+  formatEditableWeight,
+  formatLoggedWeightLabel,
+  parseWeightValue
+} from "./utils/units";
 
 const STORAGE_KEY = "recompon-progress-v1";
 const APP_NAME = "GymApp";
@@ -416,6 +422,10 @@ function App() {
 
     upsertExerciseState(currentExercise, (currentValue) => ({
       ...currentValue,
+      weightValue:
+        currentValue.weightValue.trim() && currentValue.weightUnit !== unit
+          ? convertWeightInputValue(currentValue.weightValue, currentValue.weightUnit, unit)
+          : currentValue.weightValue.trim(),
       weightUnit: unit,
       updatedAt: new Date().toISOString()
     }));
@@ -450,11 +460,13 @@ function App() {
       return;
     }
 
+    const { suggestedUnit, suggestedValue } = currentExercise.recommendation;
+
     upsertExerciseState(currentExercise, (currentValue) => ({
       ...currentValue,
       recommendationDecision: "applied",
-      weightUnit: currentExercise.recommendation.suggestedUnit,
-      weightValue: String(currentExercise.recommendation.suggestedValue),
+      weightUnit: suggestedUnit,
+      weightValue: formatEditableWeight(suggestedValue, suggestedUnit),
       updatedAt: new Date().toISOString()
     }));
   };
@@ -764,10 +776,12 @@ function App() {
             isWorkoutComplete={isWorkoutComplete}
             lastExerciseDate={latestExerciseLog?.calendarDate ?? null}
             lastExerciseRpe={latestExerciseLog?.rpe ?? null}
-            lastExerciseUnit={latestExerciseLog?.weightUnit ?? null}
             lastExerciseWeight={
               latestExerciseLog?.loggedWeight
-                ? `${latestExerciseLog.loggedWeight} ${latestExerciseLog.weightUnit}`
+                ? formatLoggedWeightLabel(
+                    latestExerciseLog.loggedWeight,
+                    latestExerciseLog.weightUnit
+                  )
                 : null
             }
             nextExerciseName={selectedExercisePlans[workoutExerciseIndex + 1]?.name ?? null}

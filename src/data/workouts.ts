@@ -33,6 +33,7 @@ export const workouts: WorkoutDay[] = [
     exercises: [
       {
         id: "hip-thrust",
+        mediaKey: "hip-thrust",
         name: "Hip Thrust",
         sets: "4",
         reps: "10",
@@ -42,14 +43,11 @@ export const workouts: WorkoutDay[] = [
         motion: "thrust",
         jointLoad: "low",
         defaultUnit: "kg",
-        starterWeight: { value: 20, unit: "kg" },
-        media: {
-          type: "placeholder",
-          alt: "Animación futura de empuje de cadera"
-        }
+        starterWeight: { value: 20, unit: "kg" }
       },
       {
         id: "peso-muerto-rumano",
+        mediaKey: "romanian-deadlift",
         name: "Peso muerto rumano",
         sets: "4",
         reps: "10",
@@ -59,14 +57,11 @@ export const workouts: WorkoutDay[] = [
         motion: "hinge",
         jointLoad: "medium",
         defaultUnit: "kg",
-        starterWeight: { value: 12.5, unit: "kg" },
-        media: {
-          type: "placeholder",
-          alt: "Animación futura de bisagra de cadera"
-        }
+        starterWeight: { value: 12.5, unit: "kg" }
       },
       {
         id: "prensa",
+        mediaKey: "leg-press",
         name: "Prensa",
         sets: "4",
         reps: "12",
@@ -76,14 +71,11 @@ export const workouts: WorkoutDay[] = [
         motion: "press",
         jointLoad: "high",
         defaultUnit: "kg",
-        starterWeight: { value: 40, unit: "kg" },
-        media: {
-          type: "placeholder",
-          alt: "Animación futura de prensa de pierna"
-        }
+        starterWeight: { value: 40, unit: "kg" }
       },
       {
         id: "extension",
+        mediaKey: "leg-extension",
         name: "Extensión",
         sets: "3",
         reps: "15",
@@ -93,14 +85,11 @@ export const workouts: WorkoutDay[] = [
         motion: "extension",
         jointLoad: "high",
         defaultUnit: "lb",
-        starterWeight: { value: 20, unit: "lb" },
-        media: {
-          type: "placeholder",
-          alt: "Animación futura de extensión de pierna"
-        }
+        starterWeight: { value: 20, unit: "lb" }
       },
       {
         id: "abduccion",
+        mediaKey: "hip-abduction",
         name: "Abducción",
         sets: "4",
         reps: "20",
@@ -110,14 +99,11 @@ export const workouts: WorkoutDay[] = [
         motion: "abduction",
         jointLoad: "low",
         defaultUnit: "lb",
-        starterWeight: { value: 35, unit: "lb" },
-        media: {
-          type: "placeholder",
-          alt: "Animación futura de abducción de cadera"
-        }
+        starterWeight: { value: 35, unit: "lb" }
       },
       {
         id: "pantorrillas",
+        mediaKey: "calf-raise",
         name: "Pantorrillas",
         sets: "4",
         reps: "20",
@@ -127,11 +113,7 @@ export const workouts: WorkoutDay[] = [
         motion: "calf",
         jointLoad: "low",
         defaultUnit: "lb",
-        starterWeight: { value: 30, unit: "lb" },
-        media: {
-          type: "placeholder",
-          alt: "Animación futura de elevación de pantorrilla"
-        }
+        starterWeight: { value: 30, unit: "lb" }
       }
     ]
   },
@@ -150,6 +132,7 @@ export const workouts: WorkoutDay[] = [
     exercises: [
       {
         id: "jalon",
+        mediaKey: "lat-pulldown",
         name: "Jalón",
         sets: "4",
         reps: "10",
@@ -159,14 +142,11 @@ export const workouts: WorkoutDay[] = [
         motion: "pull",
         jointLoad: "medium",
         defaultUnit: "lb",
-        starterWeight: { value: 40, unit: "lb" },
-        media: {
-          type: "placeholder",
-          alt: "Animación futura de jalón al pecho"
-        }
+        starterWeight: { value: 40, unit: "lb" }
       },
       {
         id: "remo",
+        mediaKey: "seated-row",
         name: "Remo",
         sets: "4",
         reps: "10",
@@ -176,14 +156,11 @@ export const workouts: WorkoutDay[] = [
         motion: "pull",
         jointLoad: "medium",
         defaultUnit: "lb",
-        starterWeight: { value: 35, unit: "lb" },
-        media: {
-          type: "placeholder",
-          alt: "Animación futura de remo sentado"
-        }
+        starterWeight: { value: 35, unit: "lb" }
       },
       {
         id: "press-pecho",
+        mediaKey: "chest-press",
         name: "Press pecho",
         sets: "3",
         reps: "12",
@@ -193,14 +170,11 @@ export const workouts: WorkoutDay[] = [
         motion: "press",
         jointLoad: "medium",
         defaultUnit: "lb",
-        starterWeight: { value: 25, unit: "lb" },
-        media: {
-          type: "placeholder",
-          alt: "Animación futura de press de pecho"
-        }
+        starterWeight: { value: 25, unit: "lb" }
       },
       {
         id: "press-hombro",
+        mediaKey: "shoulder-press",
         name: "Press hombro",
         sets: "3",
         reps: "12",
@@ -210,14 +184,11 @@ export const workouts: WorkoutDay[] = [
         motion: "press",
         jointLoad: "medium",
         defaultUnit: "lb",
-        starterWeight: { value: 15, unit: "lb" },
-        media: {
-          type: "placeholder",
-          alt: "Animación futura de press de hombro"
-        }
+        starterWeight: { value: 15, unit: "lb" }
       },
       {
         id: "elevaciones-laterales",
+        mediaKey: "lateral-raise",
         name: "Elevaciones laterales",
         sets: "3",
         reps: "15",
@@ -227,14 +198,11 @@ export const workouts: WorkoutDay[] = [
         motion: "pull",
         jointLoad: "low",
         defaultUnit: "lb",
-        starterWeight: { value: 5, unit: "lb" },
-        media: {
-          type: "placeholder",
-          alt: "Animación futura de elevaciones laterales"
-        }
+        starterWeight: { value: 5, unit: "lb" }
       },
       {
         id: "biceps",
+        mediaKey: "biceps-curl",
         name: "Bíceps",
         sets: "3",
         reps: "12",
@@ -244,14 +212,11 @@ export const workouts: WorkoutDay[] = [
         motion: "curl",
         jointLoad: "low",
         defaultUnit: "lb",
-        starterWeight: { value: 10, unit: "lb" },
-        media: {
-          type: "placeholder",
-          alt: "Animación futura de curl de bíceps"
-        }
+        starterWeight: { value: 10, unit: "lb" }
       },
       {
         id: "triceps",
+        mediaKey: "triceps-extension",
         name: "Tríceps",
         sets: "3",
         reps: "12",
@@ -261,11 +226,7 @@ export const workouts: WorkoutDay[] = [
         motion: "extension",
         jointLoad: "low",
         defaultUnit: "lb",
-        starterWeight: { value: 15, unit: "lb" },
-        media: {
-          type: "placeholder",
-          alt: "Animación futura de extensión de tríceps"
-        }
+        starterWeight: { value: 15, unit: "lb" }
       }
     ]
   },
@@ -284,6 +245,7 @@ export const workouts: WorkoutDay[] = [
     exercises: [
       {
         id: "hip-thrust",
+        mediaKey: "hip-thrust",
         name: "Hip Thrust",
         sets: "4",
         reps: "8",
@@ -293,14 +255,11 @@ export const workouts: WorkoutDay[] = [
         motion: "thrust",
         jointLoad: "low",
         defaultUnit: "kg",
-        starterWeight: { value: 22.5, unit: "kg" },
-        media: {
-          type: "placeholder",
-          alt: "Animación futura de empuje de cadera"
-        }
+        starterWeight: { value: 22.5, unit: "kg" }
       },
       {
         id: "curl-femoral",
+        mediaKey: "leg-curl",
         name: "Curl femoral",
         sets: "4",
         reps: "12",
@@ -310,14 +269,11 @@ export const workouts: WorkoutDay[] = [
         motion: "curl",
         jointLoad: "low",
         defaultUnit: "lb",
-        starterWeight: { value: 25, unit: "lb" },
-        media: {
-          type: "placeholder",
-          alt: "Animación futura de curl femoral"
-        }
+        starterWeight: { value: 25, unit: "lb" }
       },
       {
         id: "peso-muerto-rumano",
+        mediaKey: "romanian-deadlift",
         name: "Peso muerto rumano",
         sets: "3",
         reps: "10",
@@ -327,14 +283,11 @@ export const workouts: WorkoutDay[] = [
         motion: "hinge",
         jointLoad: "medium",
         defaultUnit: "kg",
-        starterWeight: { value: 12.5, unit: "kg" },
-        media: {
-          type: "placeholder",
-          alt: "Animación futura de bisagra de cadera"
-        }
+        starterWeight: { value: 12.5, unit: "kg" }
       },
       {
         id: "patada-gluteo",
+        mediaKey: "glute-kickback",
         name: "Patada de glúteo",
         sets: "3",
         reps: "15",
@@ -344,14 +297,11 @@ export const workouts: WorkoutDay[] = [
         motion: "thrust",
         jointLoad: "low",
         defaultUnit: "lb",
-        starterWeight: { value: 15, unit: "lb" },
-        media: {
-          type: "placeholder",
-          alt: "Animación futura de patada de glúteo"
-        }
+        starterWeight: { value: 15, unit: "lb" }
       },
       {
         id: "abduccion",
+        mediaKey: "hip-abduction",
         name: "Abducción",
         sets: "4",
         reps: "20",
@@ -361,14 +311,11 @@ export const workouts: WorkoutDay[] = [
         motion: "abduction",
         jointLoad: "low",
         defaultUnit: "lb",
-        starterWeight: { value: 35, unit: "lb" },
-        media: {
-          type: "placeholder",
-          alt: "Animación futura de abducción de cadera"
-        }
+        starterWeight: { value: 35, unit: "lb" }
       },
       {
         id: "pantorrillas",
+        mediaKey: "calf-raise",
         name: "Pantorrillas",
         sets: "4",
         reps: "20",
@@ -378,11 +325,7 @@ export const workouts: WorkoutDay[] = [
         motion: "calf",
         jointLoad: "low",
         defaultUnit: "lb",
-        starterWeight: { value: 30, unit: "lb" },
-        media: {
-          type: "placeholder",
-          alt: "Animación futura de elevación de pantorrilla"
-        }
+        starterWeight: { value: 30, unit: "lb" }
       }
     ]
   },
@@ -401,6 +344,7 @@ export const workouts: WorkoutDay[] = [
     exercises: [
       {
         id: "remo-mancuerna",
+        mediaKey: "dumbbell-row",
         name: "Remo mancuerna",
         sets: "4",
         reps: "10",
@@ -410,14 +354,11 @@ export const workouts: WorkoutDay[] = [
         motion: "pull",
         jointLoad: "medium",
         defaultUnit: "lb",
-        starterWeight: { value: 15, unit: "lb" },
-        media: {
-          type: "placeholder",
-          alt: "Animación futura de remo con mancuerna"
-        }
+        starterWeight: { value: 15, unit: "lb" }
       },
       {
         id: "jalon-cerrado",
+        mediaKey: "close-grip-pulldown",
         name: "Jalón cerrado",
         sets: "3",
         reps: "12",
@@ -427,14 +368,11 @@ export const workouts: WorkoutDay[] = [
         motion: "pull",
         jointLoad: "medium",
         defaultUnit: "lb",
-        starterWeight: { value: 35, unit: "lb" },
-        media: {
-          type: "placeholder",
-          alt: "Animación futura de jalón cerrado"
-        }
+        starterWeight: { value: 35, unit: "lb" }
       },
       {
         id: "press-militar",
+        mediaKey: "overhead-press",
         name: "Press militar",
         sets: "3",
         reps: "12",
@@ -444,14 +382,11 @@ export const workouts: WorkoutDay[] = [
         motion: "press",
         jointLoad: "medium",
         defaultUnit: "lb",
-        starterWeight: { value: 10, unit: "lb" },
-        media: {
-          type: "placeholder",
-          alt: "Animación futura de press militar"
-        }
+        starterWeight: { value: 10, unit: "lb" }
       },
       {
         id: "face-pull",
+        mediaKey: "face-pull",
         name: "Face Pull",
         sets: "3",
         reps: "15",
@@ -461,14 +396,11 @@ export const workouts: WorkoutDay[] = [
         motion: "pull",
         jointLoad: "low",
         defaultUnit: "lb",
-        starterWeight: { value: 20, unit: "lb" },
-        media: {
-          type: "placeholder",
-          alt: "Animación futura de face pull"
-        }
+        starterWeight: { value: 20, unit: "lb" }
       },
       {
         id: "curl-martillo",
+        mediaKey: "hammer-curl",
         name: "Curl martillo",
         sets: "3",
         reps: "12",
@@ -478,14 +410,11 @@ export const workouts: WorkoutDay[] = [
         motion: "curl",
         jointLoad: "low",
         defaultUnit: "lb",
-        starterWeight: { value: 10, unit: "lb" },
-        media: {
-          type: "placeholder",
-          alt: "Animación futura de curl martillo"
-        }
+        starterWeight: { value: 10, unit: "lb" }
       },
       {
         id: "triceps",
+        mediaKey: "triceps-extension",
         name: "Tríceps",
         sets: "3",
         reps: "12",
@@ -495,14 +424,11 @@ export const workouts: WorkoutDay[] = [
         motion: "extension",
         jointLoad: "low",
         defaultUnit: "lb",
-        starterWeight: { value: 15, unit: "lb" },
-        media: {
-          type: "placeholder",
-          alt: "Animación futura de extensión de tríceps"
-        }
+        starterWeight: { value: 15, unit: "lb" }
       },
       {
         id: "plancha",
+        mediaKey: "plank",
         name: "Plancha",
         sets: "3",
         reps: "40 s",
@@ -512,11 +438,7 @@ export const workouts: WorkoutDay[] = [
         motion: "plank",
         jointLoad: "low",
         defaultUnit: "kg",
-        starterWeight: { value: 0, unit: "kg" },
-        media: {
-          type: "placeholder",
-          alt: "Animación futura de plancha"
-        }
+        starterWeight: { value: 0, unit: "kg" }
       }
     ]
   },
@@ -535,6 +457,7 @@ export const workouts: WorkoutDay[] = [
     exercises: [
       {
         id: "hip-thrust",
+        mediaKey: "hip-thrust",
         name: "Hip Thrust",
         sets: "5",
         reps: "8",
@@ -544,14 +467,11 @@ export const workouts: WorkoutDay[] = [
         motion: "thrust",
         jointLoad: "low",
         defaultUnit: "kg",
-        starterWeight: { value: 22.5, unit: "kg" },
-        media: {
-          type: "placeholder",
-          alt: "Animación futura de empuje de cadera"
-        }
+        starterWeight: { value: 22.5, unit: "kg" }
       },
       {
         id: "pull-through",
+        mediaKey: "cable-pull-through",
         name: "Pull Through",
         sets: "4",
         reps: "12",
@@ -561,14 +481,11 @@ export const workouts: WorkoutDay[] = [
         motion: "hinge",
         jointLoad: "low",
         defaultUnit: "lb",
-        starterWeight: { value: 25, unit: "lb" },
-        media: {
-          type: "placeholder",
-          alt: "Animación futura de pull through"
-        }
+        starterWeight: { value: 25, unit: "lb" }
       },
       {
         id: "curl-femoral",
+        mediaKey: "leg-curl",
         name: "Curl femoral",
         sets: "4",
         reps: "12",
@@ -578,14 +495,11 @@ export const workouts: WorkoutDay[] = [
         motion: "curl",
         jointLoad: "low",
         defaultUnit: "lb",
-        starterWeight: { value: 25, unit: "lb" },
-        media: {
-          type: "placeholder",
-          alt: "Animación futura de curl femoral"
-        }
+        starterWeight: { value: 25, unit: "lb" }
       },
       {
         id: "abduccion",
+        mediaKey: "hip-abduction",
         name: "Abducción",
         sets: "4",
         reps: "20",
@@ -595,14 +509,11 @@ export const workouts: WorkoutDay[] = [
         motion: "abduction",
         jointLoad: "low",
         defaultUnit: "lb",
-        starterWeight: { value: 35, unit: "lb" },
-        media: {
-          type: "placeholder",
-          alt: "Animación futura de abducción de cadera"
-        }
+        starterWeight: { value: 35, unit: "lb" }
       },
       {
         id: "pantorrillas",
+        mediaKey: "calf-raise",
         name: "Pantorrillas",
         sets: "4",
         reps: "20",
@@ -612,11 +523,7 @@ export const workouts: WorkoutDay[] = [
         motion: "calf",
         jointLoad: "low",
         defaultUnit: "lb",
-        starterWeight: { value: 30, unit: "lb" },
-        media: {
-          type: "placeholder",
-          alt: "Animación futura de elevación de pantorrilla"
-        }
+        starterWeight: { value: 30, unit: "lb" }
       }
     ]
   },

@@ -1,5 +1,4 @@
 import { formatHistoryDate } from "../utils/date";
-import { formatWeightNumber, parseWeightValue } from "../utils/units";
 import { Sparkline } from "./Sparkline";
 
 type ExerciseHistoryCardProps = {
@@ -7,21 +6,15 @@ type ExerciseHistoryCardProps = {
   displayWeight: string | null;
   rpe: number | null;
   sparklinePoints: number[];
-  unit: "kg" | "lb" | null;
 };
 
 export const ExerciseHistoryCard = ({
   date,
   displayWeight,
   rpe,
-  sparklinePoints,
-  unit
+  sparklinePoints
 }: ExerciseHistoryCardProps) => {
-  const parsedWeight = displayWeight ? parseWeightValue(displayWeight) : null;
-  const normalizedWeight =
-    parsedWeight != null && unit
-      ? formatWeightNumber(parsedWeight, unit)
-      : displayWeight || "Sin registro";
+  const normalizedWeight = displayWeight || "Sin registro";
 
   return (
     <section className="card-subtle space-y-3">

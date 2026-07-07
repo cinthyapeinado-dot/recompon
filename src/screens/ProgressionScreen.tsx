@@ -6,6 +6,7 @@ import { getProgressionPhase, progressionPhases } from "../data/workouts";
 import type { DayId, WorkoutHistoryEntry } from "../types";
 import { cn } from "../utils/cn";
 import {
+  formatVolumeKgLabel,
   getBestWeekCount,
   getMonthlySessionCount,
   getPersonalBests,
@@ -40,7 +41,7 @@ export const ProgressionScreen = ({
       <SectionIntro
         eyebrow={`Semana ${currentWeek}`}
         title="Progreso real"
-        description="Aquí se junta adherencia, volumen, mejores marcas y el bloque actual del programa."
+        description="Aqui se junta adherencia, volumen, mejores marcas y el bloque actual del programa."
         side={<span className="badge-soft">{history.length} sesiones</span>}
       />
 
@@ -60,7 +61,7 @@ export const ProgressionScreen = ({
           <StatTile
             label="Mejor semana"
             value={`${bestWeekCount}/7`}
-            detail="Máximo de días completados"
+            detail="Maximo de dias completados"
           />
           <StatTile
             label="Pesos guardados"
@@ -79,7 +80,7 @@ export const ProgressionScreen = ({
           />
           <StatTile
             label="Volumen"
-            value={weeklyVolume > 0 ? `${Math.round(weeklyVolume)} kg` : "Sin dato"}
+            value={weeklyVolume > 0 ? formatVolumeKgLabel(weeklyVolume) : "Sin dato"}
             detail="Semana actual"
           />
         </div>
@@ -130,7 +131,7 @@ export const ProgressionScreen = ({
         <div>
           <p className="eyebrow">Mejores pesos</p>
           <h2 className="mt-2 text-[1.45rem] font-semibold text-fog-100">
-            Referencias más sólidas
+            Referencias mas solidas
           </h2>
         </div>
 
@@ -155,7 +156,7 @@ export const ProgressionScreen = ({
           </div>
         ) : (
           <div className="card-subtle text-sm leading-6 text-fog-300">
-            Cuando empieces a registrar pesos con más constancia, aquí aparecerán tus referencias.
+            Cuando empieces a registrar pesos con mas constancia, aqui apareceran tus referencias.
           </div>
         )}
       </Card>
@@ -164,14 +165,14 @@ export const ProgressionScreen = ({
         <div>
           <p className="eyebrow">Historial reciente</p>
           <h2 className="mt-2 text-[1.45rem] font-semibold text-fog-100">
-            Sesiones más recientes
+            Sesiones mas recientes
           </h2>
         </div>
 
         <HistoryList
           title="Historial"
           entries={history.slice(0, 4)}
-          emptyCopy="Todavía no hay sesiones cerradas. En cuanto completes un bloque, aparecerá aquí."
+          emptyCopy="Todavia no hay sesiones cerradas. En cuanto completes un bloque, aparecera aqui."
           onOpenEntry={onOpenHistoryEntry}
         />
       </Card>

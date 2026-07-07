@@ -15,7 +15,12 @@ import type {
 import { cn } from "../utils/cn";
 import { getSuggestedPair, getRecommendationReasonList } from "../utils/recommendations";
 import { formatTimer } from "../utils/training";
-import { convertWeight, formatWeightNumber, parseWeightValue } from "../utils/units";
+import {
+  convertWeight,
+  formatEditableWeight,
+  formatWeightNumber,
+  parseWeightValue
+} from "../utils/units";
 
 type WorkoutScreenProps = {
   canGoPrevious: boolean;
@@ -27,7 +32,6 @@ type WorkoutScreenProps = {
   isWorkoutComplete: boolean;
   lastExerciseDate: string | null;
   lastExerciseRpe: number | null;
-  lastExerciseUnit: WeightUnit | null;
   lastExerciseWeight: string | null;
   nextExerciseName: string | null;
   notificationEnabled: boolean;
@@ -68,7 +72,6 @@ export const WorkoutScreen = ({
   isWorkoutComplete,
   lastExerciseDate,
   lastExerciseRpe,
-  lastExerciseUnit,
   lastExerciseWeight,
   nextExerciseName,
   notificationEnabled,
@@ -153,6 +156,45 @@ export const WorkoutScreen = ({
       secondary: formatWeightNumber(secondaryValue, secondaryUnit)
     };
   }, [parsedWeight, state]);
+
+  const suggestedInputValue = useMemo(() => {
+    if (!currentExercise || !state || currentExercise.recommendation.suggestedValue == null) {
+      return "";
+    }
+
+    const baseValue =
+      currentExercise.recommendation.suggestedUnit === state.weightUnit
+        ? currentExercise.recommendation.suggestedValue
+        : convertWeight(
+            currentExercise.recommendation.suggestedValue,
+            currentExercise.recommendation.suggestedUnit,
+            state.weightUnit
+          );
+
+    return formatEditableWeight(baseValue, state.weightUnit);
+  }, [currentExercise, state]);
+
+  const suggestedWeightPair = useMemo(() => {
+    if (!currentExercise || !state || currentExercise.recommendation.suggestedValue == null) {
+      return null;
+    }
+
+    const primaryValue =
+      currentExercise.recommendation.suggestedUnit === state.weightUnit
+        ? currentExercise.recommendation.suggestedValue
+        : convertWeight(
+            currentExercise.recommendation.suggestedValue,
+            currentExercise.recommendation.suggestedUnit,
+            state.weightUnit
+          );
+    const secondaryUnit: WeightUnit = state.weightUnit === "kg" ? "lb" : "kg";
+    const secondaryValue = convertWeight(primaryValue, state.weightUnit, secondaryUnit);
+
+    return {
+      primary: formatWeightNumber(primaryValue, state.weightUnit),
+      secondary: formatWeightNumber(secondaryValue, secondaryUnit)
+    };
+  }, [currentExercise, state]);
 
   if (workout.kind !== "strength") {
     return (
@@ -353,9 +395,7 @@ export const WorkoutScreen = ({
                   value={state.weightValue}
                   onChange={(event) => onSetWeightValue(event.target.value)}
                   placeholder={
-                    currentExercise.recommendation.suggestedValue != null
-                      ? String(currentExercise.recommendation.suggestedValue)
-                      : "Ej. 20"
+                    suggestedInputValue || "Ej. 20"
                   }
                   className="min-w-0 flex-1 bg-transparent text-[1.3rem] font-semibold text-fog-100 outline-none placeholder:text-fog-400"
                 />
@@ -379,7 +419,9 @@ export const WorkoutScreen = ({
               <p className="mt-3 text-sm text-fog-300">
                 {weightPair
                   ? `Equivalente automático: ${weightPair.primary} · ${weightPair.secondary}`
-                  : "En cuanto registres una carga, verás su equivalente automático en kg y lb."}
+                  : suggestedWeightPair
+                    ? `Sugerencia base: ${suggestedWeightPair.primary} · ${suggestedWeightPair.secondary}`
+                    : "En cuanto registres una carga, verás su equivalente automático en kg y lb."}
               </p>
             </div>
 
@@ -388,7 +430,6 @@ export const WorkoutScreen = ({
               displayWeight={lastExerciseWeight}
               rpe={lastExerciseRpe}
               sparklinePoints={sparklinePoints}
-              unit={lastExerciseUnit ?? currentExercise.defaultUnit}
             />
           </div>
 

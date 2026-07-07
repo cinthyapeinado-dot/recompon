@@ -6,24 +6,62 @@ import type {
   PlannedExercise,
   RecommendationAction,
   SessionStrategy,
+  WeightUnit,
   WorkoutAdjustment,
   WorkoutCoachPlan,
   WorkoutDay,
   WorkoutHistoryEntry
 } from "../types";
 import { getLatestExerciseLog, parseRestToSeconds } from "./training";
-import { convertWeight, parseWeightValue, roundToIncrement } from "./units";
+import {
+  convertWeight,
+  formatWeightPairLabel,
+  parseWeightValue,
+  roundToIncrement
+} from "./units";
 
 const highKneeLoadExerciseIds = new Set(["prensa", "extension"]);
 const shoulderSensitiveMotion = new Set(["press"]);
 const backSensitiveMotion = new Set(["hinge"]);
 
-const getWeightIncrement = (exercise: Exercise, currentUnit: "kg" | "lb") => {
-  if (exercise.priority === "alta") {
-    return currentUnit === "kg" ? 2.5 : 5;
-  }
+const roundSuggestedWeight = (value: number, unit: WeightUnit) =>
+  unit === "kg" ? roundToIncrement(value, 0.5) : roundToIncrement(value, 1);
 
-  return currentUnit === "kg" ? 1 : 2.5;
+const getStarterWeightInUnit = (exercise: Exercise, unit: WeightUnit) =>
+  exercise.starterWeight.unit === unit
+    ? exercise.starterWeight.value
+    : convertWeight(exercise.starterWeight.value, exercise.starterWeight.unit, unit);
+
+const getConservativeWeightDelta = (
+  exercise: Exercise,
+  currentWeight: number,
+  currentUnit: WeightUnit,
+  direction: "increase" | "decrease"
+) => {
+  const baseStep =
+    exercise.jointLoad === "high"
+      ? currentUnit === "kg"
+        ? 0.5
+        : 1
+      : exercise.priority === "alta"
+        ? currentUnit === "kg"
+          ? 1
+          : 2
+        : currentUnit === "kg"
+          ? 0.5
+          : 1;
+
+  const percentageStep =
+    currentWeight *
+    (direction === "increase"
+      ? exercise.jointLoad === "high"
+        ? 0.025
+        : 0.04
+      : exercise.jointLoad === "high"
+        ? 0.05
+        : 0.04);
+
+  return roundSuggestedWeight(Math.max(baseStep, percentageStep), currentUnit);
 };
 
 const getWarmupMinutes = (workout: WorkoutDay) =>
@@ -64,52 +102,90 @@ const buildExerciseRecommendation = (
   checkIn: DailyCheckIn | null
 ): ExerciseRecommendation => {
   const latestLog = getLatestExerciseLog(history, exercise.id);
+  const latestUnit = latestLog?.weightUnit ?? exercise.starterWeight.unit;
+  const starterWeightInLatestUnit = getStarterWeightInUnit(exercise, latestUnit);
   const latestWeight =
     latestLog && latestLog.loggedWeight
-      ? (parseWeightValue(latestLog.loggedWeight) ?? exercise.starterWeight.value)
-      : exercise.starterWeight.value;
-  const latestUnit = latestLog?.weightUnit ?? exercise.starterWeight.unit;
+      ? (parseWeightValue(latestLog.loggedWeight) ?? starterWeightInLatestUnit)
+      : starterWeightInLatestUnit;
   const latestCompletedAllSets =
     latestLog?.targetSets != null && latestLog.completedSets >= latestLog.targetSets;
   const latestRpe = latestLog?.rpe ?? null;
+  const isKneeSensitivePattern = highKneeLoadExerciseIds.has(exercise.id);
+  const hasRelevantDiscomfort = Boolean(
+    checkIn && isRelevantDiscomfort(exercise, checkIn.discomforts)
+  );
   const reasons: string[] = [];
   let action: RecommendationAction = "maintain_weight";
   let suggestedValue = latestWeight;
 
   if (!latestLog) {
-    reasons.push("Aún no hay historial suficiente, así que partimos de una carga técnica conservadora.");
+    reasons.push(
+      `Partimos de ${formatWeightPairLabel(
+        latestWeight,
+        latestUnit
+      )} para practicar tecnica con margen y poco estres articular.`
+    );
   } else {
-    reasons.push(`Tu último registro fue ${latestLog.loggedWeight} ${latestLog.weightUnit}.`);
+    reasons.push(
+      `Tu ultimo registro util fue ${formatWeightPairLabel(latestWeight, latestUnit)}.`
+    );
   }
 
-  if (latestLog && latestCompletedAllSets && (latestRpe == null || latestRpe <= 7)) {
+  const canIncreaseWeight =
+    Boolean(latestLog) &&
+    latestCompletedAllSets &&
+    (latestRpe == null || latestRpe <= (isKneeSensitivePattern ? 6 : 7)) &&
+    !hasRelevantDiscomfort &&
+    !(checkIn?.energy === "baja" || checkIn?.sleep === "mal");
+
+  if (canIncreaseWeight) {
     action = "increase_weight";
-    suggestedValue = latestWeight + getWeightIncrement(exercise, latestUnit);
-    reasons.push("Completaste todas las series con margen suficiente.");
+    suggestedValue =
+      latestWeight +
+      getConservativeWeightDelta(exercise, latestWeight, latestUnit, "increase");
+    reasons.push(
+      "Completaste todas las series con margen y la subida propuesta es pequena para cuidar la tecnica."
+    );
   }
 
-  if (latestLog && (latestLog.completedSets < latestLog.targetSets || (latestRpe != null && latestRpe >= 9))) {
+  if (
+    latestLog &&
+    (latestLog.completedSets < latestLog.targetSets || (latestRpe != null && latestRpe >= 9))
+  ) {
     action = "decrease_weight";
     suggestedValue = Math.max(
-      latestWeight - getWeightIncrement(exercise, latestUnit),
-      exercise.starterWeight.value
+      latestWeight -
+        getConservativeWeightDelta(exercise, latestWeight, latestUnit, "decrease"),
+      starterWeightInLatestUnit
     );
-    reasons.push("La sesión anterior se sintió exigente o quedó incompleta.");
+    reasons.push(
+      "La sesion anterior se sintio exigente o quedo incompleta, asi que hoy conviene aliviar la carga."
+    );
   }
 
   if (checkIn?.energy === "baja" || checkIn?.sleep === "mal") {
     action = latestLog ? "maintain_weight" : action;
     suggestedValue = latestLog ? latestWeight : suggestedValue;
-    reasons.push("Hoy reportaste baja energía o mal descanso; conviene priorizar control.");
+    reasons.push("Hoy reportaste baja energia o mal descanso; conviene priorizar control.");
   }
 
-  if (checkIn && isRelevantDiscomfort(exercise, checkIn.discomforts)) {
+  if (hasRelevantDiscomfort) {
     action = "decrease_weight";
     suggestedValue = Math.max(
-      latestWeight - getWeightIncrement(exercise, latestUnit),
-      exercise.starterWeight.value
+      latestWeight -
+        getConservativeWeightDelta(exercise, latestWeight, latestUnit, "decrease"),
+      starterWeightInLatestUnit
     );
-    reasons.push("Hay una molestia reportada que afecta directamente este patrón.");
+    reasons.push(
+      "Hay una molestia reportada en este patron y la prioridad es proteger articulaciones."
+    );
+  }
+
+  if (isKneeSensitivePattern) {
+    reasons.push(
+      "En patrones que cargan mas la rodilla solo sugerimos avances pequenos cuando la tecnica se ve clara."
+    );
   }
 
   const confidence = getConfidence(Boolean(latestLog), reasons);
@@ -119,30 +195,24 @@ const buildExerciseRecommendation = (
     confidence,
     detail:
       action === "increase_weight"
-        ? "Puedes subir un paso pequeño si la técnica sigue sólida."
+        ? "Puedes subir un paso pequeno si el movimiento sigue limpio y sin presion en la rodilla."
         : action === "decrease_weight"
-          ? "Hoy conviene bajar un poco y priorizar sensación muscular."
-          : "Mantén una carga estable y enfócate en ejecución consistente.",
+          ? "Hoy conviene bajar un poco para recuperar control, rango y sensacion muscular."
+          : "Mantener esta carga ayuda a consolidar tecnica con un margen seguro.",
     exerciseId: exercise.id,
     reasons,
     suggestedUnit: latestUnit,
-    suggestedValue:
-      latestUnit === "kg"
-        ? roundToIncrement(suggestedValue, 0.5)
-        : roundToIncrement(suggestedValue, 1),
+    suggestedValue: roundSuggestedWeight(suggestedValue, latestUnit),
     title:
       action === "increase_weight"
-        ? "Subir peso"
+        ? "Subir un paso pequeno"
         : action === "decrease_weight"
-          ? "Bajar peso"
-          : "Mantener peso"
+          ? "Bajar un paso"
+          : "Mantener la carga"
   };
 };
 
-const buildWorkoutAdjustments = (
-  workout: WorkoutDay,
-  checkIn: DailyCheckIn | null
-) => {
+const buildWorkoutAdjustments = (workout: WorkoutDay, checkIn: DailyCheckIn | null) => {
   const adjustments: WorkoutAdjustment[] = [];
 
   if (!checkIn) {
@@ -154,9 +224,9 @@ const buildWorkoutAdjustments = (
       if (workout.exercises.some((exercise) => exercise.id === exerciseId)) {
         adjustments.push({
           action: "protect_joint",
-          detail: "Reducir una serie y dar más descanso si decides aplicar la recomendación.",
+          detail: "Reducir una serie y dar mas descanso si decides aplicar la recomendacion.",
           exerciseId,
-          reason: "Reportaste molestia en la rodilla y este ejercicio suele cargar más esa zona.",
+          reason: "Reportaste molestia en la rodilla y este ejercicio suele cargar mas esa zona.",
           title: "Proteger rodilla"
         });
       }
@@ -171,7 +241,7 @@ const buildWorkoutAdjustments = (
           action: "protect_joint",
           detail: "Reducir una serie y bajar un punto de exigencia hoy.",
           exerciseId: exercise.id,
-          reason: "Reportaste molestia en espalda y este patrón demanda estabilidad lumbar.",
+          reason: "Reportaste molestia en espalda y este patron demanda estabilidad lumbar.",
           title: "Bajar demanda lumbar"
         });
       });
@@ -185,7 +255,7 @@ const buildWorkoutAdjustments = (
           action: "protect_joint",
           detail: "Alargar descanso y mantener un peso muy controlado.",
           exerciseId: exercise.id,
-          reason: "Reportaste molestia en hombro y este patrón puede irritarlo si se apura.",
+          reason: "Reportaste molestia en hombro y este patron puede irritarlo si se apura.",
           title: "Cuidar hombro"
         });
       });
@@ -196,19 +266,19 @@ const buildWorkoutAdjustments = (
       action: "shorten_session",
       detail:
         checkIn.timeAvailable === "30_min"
-          ? "Recortar accesorios base al final de la sesión."
-          : "Dejar como opcional el último accesorio base.",
+          ? "Recortar accesorios base al final de la sesion."
+          : "Dejar como opcional el ultimo accesorio base.",
       reason: "Hoy tienes menos tiempo y conviene asegurar el bloque principal primero.",
-      title: "Ajustar duración"
+      title: "Ajustar duracion"
     });
   }
 
   if (checkIn.energy === "baja" || checkIn.sleep === "mal" || checkIn.sleep === "regular") {
     adjustments.push({
       action: "extend_rest",
-      detail: "Agregar 15 segundos de descanso en los básicos principales.",
-      reason: "El estado de energía sugiere dar más espacio para sostener técnica.",
-      title: "Respirar más entre series"
+      detail: "Agregar 15 segundos de descanso en los basicos principales.",
+      reason: "El estado de energia sugiere dar mas espacio para sostener tecnica.",
+      title: "Respirar mas entre series"
     });
   }
 
@@ -271,12 +341,12 @@ export const buildWorkoutCoachPlan = ({
   const reasons =
     checkIn == null
       ? [
-          `${athleteProfile.name} entrena con prioridad en técnica, bajo impacto y progresión gradual.`,
-          "Sin check-in del día, el plan mantiene la estructura base con recomendaciones por historial."
+          `${athleteProfile.name} entrena con prioridad en tecnica, bajo impacto y progresion gradual.`,
+          "Sin check-in del dia, el plan mantiene la estructura base con recomendaciones por historial."
         ]
       : [
-          `Sueño: ${checkIn.sleep}.`,
-          `Energía: ${checkIn.energy}.`,
+          `Sueno: ${checkIn.sleep}.`,
+          `Energia: ${checkIn.energy}.`,
           checkIn.discomforts.length > 0
             ? `Molestias reportadas: ${checkIn.discomforts.join(", ")}.`
             : "Sin molestias reportadas.",
@@ -304,9 +374,9 @@ export const buildWorkoutCoachPlan = ({
     reasons,
     summary:
       checkIn == null
-        ? "Plan base listo para entrenar sin fricción."
+        ? "Plan base listo para entrenar sin friccion."
         : strategy === "applied"
-          ? "Aplicamos un ajuste inteligente para acompañar cómo llegaste hoy."
+          ? "Aplicamos un ajuste inteligente para acompanar como llegaste hoy."
           : "Se mantuvo la rutina original, pero las recomendaciones siguen visibles."
   };
 };

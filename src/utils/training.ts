@@ -7,7 +7,12 @@ import type {
   WorkoutHistoryEntry
 } from "../types";
 import { addDays, formatCalendarDate, parseCalendarDate } from "./date";
-import { convertWeight, formatWeightNumber, parseWeightValue } from "./units";
+import {
+  convertWeight,
+  formatLoggedWeightLabel,
+  formatWeightPairLabel,
+  parseWeightValue
+} from "./units";
 
 export type PersonalBest = {
   date: string;
@@ -17,6 +22,8 @@ export type PersonalBest = {
   weight: number;
   weightUnit: "kg" | "lb";
 };
+
+export const formatVolumeKgLabel = (weightKg: number) => formatWeightPairLabel(weightKg, "kg");
 
 export const parseRestToSeconds = (rest: string) => {
   const match = rest.match(/(\d+)/);
@@ -162,7 +169,7 @@ export const getPersonalBests = (history: WorkoutHistoryEntry[]) => {
       if (!currentBest || comparableWeight > currentBest.weight) {
         bests.set(log.exerciseId, {
           date: entry.calendarDate,
-          displayWeight: formatWeightNumber(parsedWeight, log.weightUnit),
+          displayWeight: formatLoggedWeightLabel(log.loggedWeight, log.weightUnit),
           exerciseId: log.exerciseId,
           exerciseName: exerciseLabelsById[log.exerciseId] ?? log.exerciseName,
           weight: comparableWeight,

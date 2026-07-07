@@ -36,15 +36,19 @@ export type ExerciseMotionKind =
   | "walk"
   | "rest";
 
-export type ExerciseMedia = {
-  type: "placeholder" | "lottie" | "mp4" | "gif";
-  src?: string;
-  poster?: string;
+export type ExerciseMediaKind = "placeholder" | "lottie" | "mp4" | "gif" | "svg";
+
+export type ExerciseMediaResource = {
+  animationData?: unknown;
   alt: string;
+  kind: ExerciseMediaKind;
+  previewSrc: string | null;
+  src?: string;
 };
 
 export type Exercise = {
   id: string;
+  mediaKey: string;
   name: string;
   sets: string;
   reps: string;
@@ -58,7 +62,6 @@ export type Exercise = {
     value: number;
     unit: WeightUnit;
   };
-  media: ExerciseMedia;
 };
 
 export type WorkoutDay = {
