@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title>Recompón</title>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8ecee" />
+      <stop offset="100%" stop-color="#e7d6c5" />
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#d995a8" />
+      <stop offset="100%" stop-color="#8d5665" />
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="34" fill="url(#bg)" />
+  <path
+    d="M40 36c0-4.4 3.6-8 8-8h32c4.4 0 8 3.6 8 8v10h6c4.4 0 8 3.6 8 8v20c0 4.4-3.6 8-8 8h-6v10c0 4.4-3.6 8-8 8H48c-4.4 0-8-3.6-8-8V82h-6c-4.4 0-8-3.6-8-8V54c0-4.4 3.6-8 8-8h6V36Zm12 0v10h24V36H52Zm-14 22v12h12V58H38Zm40 0v12h12V58H78Zm-26 0v12h16V58H52Zm0 24v8h24v-8H52Z"
+    fill="url(#accent)"
+  />
+</svg>

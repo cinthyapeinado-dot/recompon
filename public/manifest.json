@@ -1,0 +1,42 @@
+{
+  "id": "/",
+  "name": "Recompón",
+  "short_name": "Recompón",
+  "description": "Programa de entrenamiento móvil, práctico y elegante para el gimnasio.",
+  "lang": "es-MX",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f9f4ef",
+  "theme_color": "#f2d7dc",
+  "categories": ["health", "fitness", "lifestyle"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Entrenar hoy",
+      "short_name": "Hoy",
+      "description": "Abrir la rutina del día",
+      "url": "/"
+    },
+    {
+      "name": "Ver estadísticas",
+      "short_name": "Progreso",
+      "description": "Revisar historial y progreso",
+      "url": "/"
+    }
+  ]
+}
