@@ -1,4 +1,4 @@
-const CACHE_NAME = "recompon-cache-v3";
+const CACHE_NAME = "gymapp-cache-v5";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -8,8 +8,27 @@ const APP_SHELL = [
   "/favicon-32x32.png",
   "/favicon.ico",
   "/apple-touch-icon.png",
+  "/apple-touch-icon-120x120.png",
+  "/apple-touch-icon-152x152.png",
+  "/apple-touch-icon-167x167.png",
+  "/apple-touch-icon-180x180.png",
+  "/safari-pinned-tab.svg",
   "/icons/icon-192.png",
-  "/icons/icon-512.png"
+  "/icons/icon-256.png",
+  "/icons/icon-384.png",
+  "/icons/icon-512.png",
+  "/icons/icon-maskable-192.png",
+  "/icons/icon-maskable-512.png",
+  "/startup/iphone-se.png",
+  "/startup/iphone-8.png",
+  "/startup/iphone-8-plus.png",
+  "/startup/iphone-x-xs-11pro.png",
+  "/startup/iphone-xr-11.png",
+  "/startup/iphone-xsmax-11promax.png",
+  "/startup/iphone-12-13-14.png",
+  "/startup/iphone-12-13-promax-14plus.png",
+  "/startup/iphone-14pro.png",
+  "/startup/iphone-14promax-15promax.png"
 ];
 
 self.addEventListener("install", (event) => {

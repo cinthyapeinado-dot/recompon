@@ -1,6 +1,6 @@
-# Recompón
+# GymApp
 
-Recompón es una PWA mobile-first que funciona como coach de entrenamiento personal para gimnasio. No está pensada como un listado de rutinas, sino como una experiencia guiada, enfocada en acompañar a la usuaria ejercicio por ejercicio con contexto, recomendaciones y progreso persistente.
+GymApp es una PWA mobile-first que funciona como coach de entrenamiento personal para gimnasio. No está pensada como un listado de rutinas, sino como una experiencia guiada, enfocada en acompañar a la usuaria ejercicio por ejercicio con contexto, recomendaciones y progreso persistente.
 
 ## Stack
 

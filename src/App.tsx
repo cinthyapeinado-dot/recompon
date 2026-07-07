@@ -47,6 +47,7 @@ import {
 import { convertWeight, parseWeightValue } from "./utils/units";
 
 const STORAGE_KEY = "recompon-progress-v1";
+const APP_NAME = "GymApp";
 const NOTIFICATION_ICON = "/icons/icon-192.png";
 
 type NotificationPermissionState = NotificationPermission | "unsupported";
@@ -600,9 +601,9 @@ function App() {
 
   const handleSendTestNotification = () =>
     void sendLocalNotification(
-      "Recompón",
+      APP_NAME,
       "Tus avisos locales ya están listos para acompañarte durante el entrenamiento.",
-      { tag: "recompon-test" }
+      { tag: "gymapp-test" }
     );
 
   const handleRestTimerComplete = (workoutTitle: string, seconds: number) => {
@@ -687,7 +688,7 @@ function App() {
 
     void sendLocalNotification(
       "Plan del día listo",
-      `Hoy toca ${todayWorkout.title}. Entra a Recompón y deja que la app te lleve ejercicio por ejercicio.`,
+      `Hoy toca ${todayWorkout.title}. Entra a ${APP_NAME} y deja que la app te lleve ejercicio por ejercicio.`,
       { tag: `daily-${todayCalendarDate}` }
     ).then((wasSent) => {
       if (!wasSent) {
@@ -831,7 +832,7 @@ function App() {
               <div>
                 <p className="eyebrow">Coach privado</p>
                 <p className="mt-1 text-[1.05rem] font-semibold tracking-[-0.03em] text-fog-100">
-                  Recompón
+                  {APP_NAME}
                 </p>
               </div>
 

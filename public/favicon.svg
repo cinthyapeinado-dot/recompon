@@ -1,18 +1,56 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
-  <title>Recompón</title>
+  <title>GymApp</title>
   <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#f8ecee" />
-      <stop offset="100%" stop-color="#e7d6c5" />
+    <linearGradient id="surface" x1="12%" y1="8%" x2="88%" y2="92%">
+      <stop offset="0%" stop-color="#171a20" />
+      <stop offset="100%" stop-color="#0b0d11" />
     </linearGradient>
-    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#d995a8" />
-      <stop offset="100%" stop-color="#8d5665" />
+    <linearGradient id="accent" x1="25%" y1="12%" x2="72%" y2="88%">
+      <stop offset="0%" stop-color="#26ddff" />
+      <stop offset="52%" stop-color="#0d98ff" />
+      <stop offset="100%" stop-color="#0a57f8" />
     </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3.6" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
   </defs>
-  <rect width="128" height="128" rx="34" fill="url(#bg)" />
-  <path
-    d="M40 36c0-4.4 3.6-8 8-8h32c4.4 0 8 3.6 8 8v10h6c4.4 0 8 3.6 8 8v20c0 4.4-3.6 8-8 8h-6v10c0 4.4-3.6 8-8 8H48c-4.4 0-8-3.6-8-8V82h-6c-4.4 0-8-3.6-8-8V54c0-4.4 3.6-8 8-8h6V36Zm12 0v10h24V36H52Zm-14 22v12h12V58H38Zm40 0v12h12V58H78Zm-26 0v12h16V58H52Zm0 24v8h24v-8H52Z"
-    fill="url(#accent)"
+  <rect x="8" y="8" width="112" height="112" rx="28" fill="url(#surface)" />
+  <rect
+    x="8"
+    y="8"
+    width="112"
+    height="112"
+    rx="28"
+    fill="none"
+    stroke="#ffffff"
+    stroke-opacity="0.18"
+    stroke-width="1.5"
+  />
+  <circle
+    cx="64"
+    cy="64"
+    r="36"
+    fill="none"
+    stroke="#2a2f37"
+    stroke-width="12"
+    stroke-linecap="round"
+    stroke-dasharray="106 220"
+    transform="rotate(142 64 64)"
+  />
+  <circle
+    cx="64"
+    cy="64"
+    r="36"
+    fill="none"
+    stroke="url(#accent)"
+    stroke-width="12"
+    stroke-linecap="round"
+    stroke-dasharray="182 144"
+    transform="rotate(-46 64 64)"
+    filter="url(#glow)"
   />
 </svg>
