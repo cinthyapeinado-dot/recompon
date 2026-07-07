@@ -2,6 +2,11 @@
 
 PWA mobile-first para seguir un programa de entrenamiento en el gimnasio con una experiencia visual premium, estilo app iOS moderna.
 
+## Enlaces
+
+- Repositorio: [https://github.com/cinthyapeinado-dot/recompon](https://github.com/cinthyapeinado-dot/recompon)
+- Producción: [https://recompon-apo2tvz9x-dlpcontadores.vercel.app](https://recompon-apo2tvz9x-dlpcontadores.vercel.app)
+
 ## Stack
 
 - React + Vite
@@ -53,7 +58,7 @@ git init
 4. Agrega el remoto:
 
 ```bash
-git remote add origin https://github.com/TU_USUARIO/recompon.git
+git remote add origin https://github.com/cinthyapeinado-dot/recompon.git
 ```
 
 5. Revisa que `.gitignore` esté presente.
