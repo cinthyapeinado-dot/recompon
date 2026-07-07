@@ -20,7 +20,6 @@ import {
   roundToIncrement
 } from "./units";
 
-const highKneeLoadExerciseIds = new Set(["prensa", "extension"]);
 const shoulderSensitiveMotion = new Set(["press"]);
 const backSensitiveMotion = new Set(["hinge"]);
 
@@ -75,7 +74,7 @@ const getBaseDuration = (workout: WorkoutDay) =>
   }, getWarmupMinutes(workout));
 
 const isRelevantDiscomfort = (exercise: Exercise, discomforts: DailyCheckIn["discomforts"]) => {
-  if (discomforts.includes("rodilla") && highKneeLoadExerciseIds.has(exercise.id)) {
+  if (discomforts.includes("rodilla") && !exercise.kneeFriendly) {
     return true;
   }
 
@@ -111,7 +110,7 @@ const buildExerciseRecommendation = (
   const latestCompletedAllSets =
     latestLog?.targetSets != null && latestLog.completedSets >= latestLog.targetSets;
   const latestRpe = latestLog?.rpe ?? null;
-  const isKneeSensitivePattern = highKneeLoadExerciseIds.has(exercise.id);
+  const isKneeSensitivePattern = !exercise.kneeFriendly;
   const hasRelevantDiscomfort = Boolean(
     checkIn && isRelevantDiscomfort(exercise, checkIn.discomforts)
   );
@@ -124,11 +123,11 @@ const buildExerciseRecommendation = (
       `Partimos de ${formatWeightPairLabel(
         latestWeight,
         latestUnit
-      )} para practicar tecnica con margen y poco estres articular.`
+      )} para practicar técnica con margen y poco estrés articular.`
     );
   } else {
     reasons.push(
-      `Tu ultimo registro util fue ${formatWeightPairLabel(latestWeight, latestUnit)}.`
+      `Tu último registro útil fue ${formatWeightPairLabel(latestWeight, latestUnit)}.`
     );
   }
 
@@ -145,7 +144,7 @@ const buildExerciseRecommendation = (
       latestWeight +
       getConservativeWeightDelta(exercise, latestWeight, latestUnit, "increase");
     reasons.push(
-      "Completaste todas las series con margen y la subida propuesta es pequena para cuidar la tecnica."
+      "Completaste todas las series con margen y la subida propuesta es pequeña para cuidar la técnica."
     );
   }
 
@@ -160,14 +159,14 @@ const buildExerciseRecommendation = (
       starterWeightInLatestUnit
     );
     reasons.push(
-      "La sesion anterior se sintio exigente o quedo incompleta, asi que hoy conviene aliviar la carga."
+      "La sesión anterior se sintió exigente o quedó incompleta, así que hoy conviene aliviar la carga."
     );
   }
 
   if (checkIn?.energy === "baja" || checkIn?.sleep === "mal") {
     action = latestLog ? "maintain_weight" : action;
     suggestedValue = latestLog ? latestWeight : suggestedValue;
-    reasons.push("Hoy reportaste baja energia o mal descanso; conviene priorizar control.");
+    reasons.push("Hoy reportaste baja energía o mal descanso; conviene priorizar control.");
   }
 
   if (hasRelevantDiscomfort) {
@@ -178,13 +177,13 @@ const buildExerciseRecommendation = (
       starterWeightInLatestUnit
     );
     reasons.push(
-      "Hay una molestia reportada en este patron y la prioridad es proteger articulaciones."
+      "Hay una molestia reportada en este patrón y la prioridad es proteger articulaciones."
     );
   }
 
   if (isKneeSensitivePattern) {
     reasons.push(
-      "En patrones que cargan mas la rodilla solo sugerimos avances pequenos cuando la tecnica se ve clara."
+      "En patrones que cargan más la rodilla solo sugerimos avances pequeños cuando la técnica se ve clara."
     );
   }
 
@@ -195,17 +194,17 @@ const buildExerciseRecommendation = (
     confidence,
     detail:
       action === "increase_weight"
-        ? "Puedes subir un paso pequeno si el movimiento sigue limpio y sin presion en la rodilla."
+        ? "Puedes subir un paso pequeño si el movimiento sigue limpio y sin presión en la rodilla."
         : action === "decrease_weight"
-          ? "Hoy conviene bajar un poco para recuperar control, rango y sensacion muscular."
-          : "Mantener esta carga ayuda a consolidar tecnica con un margen seguro.",
+          ? "Hoy conviene bajar un poco para recuperar control, rango y sensación muscular."
+          : "Mantener esta carga ayuda a consolidar técnica con un margen seguro.",
     exerciseId: exercise.id,
     reasons,
     suggestedUnit: latestUnit,
     suggestedValue: roundSuggestedWeight(suggestedValue, latestUnit),
     title:
       action === "increase_weight"
-        ? "Subir un paso pequeno"
+        ? "Subir un paso pequeño"
         : action === "decrease_weight"
           ? "Bajar un paso"
           : "Mantener la carga"
@@ -220,17 +219,17 @@ const buildWorkoutAdjustments = (workout: WorkoutDay, checkIn: DailyCheckIn | nu
   }
 
   if (checkIn.discomforts.includes("rodilla")) {
-    highKneeLoadExerciseIds.forEach((exerciseId) => {
-      if (workout.exercises.some((exercise) => exercise.id === exerciseId)) {
+    workout.exercises
+      .filter((exercise) => !exercise.kneeFriendly)
+      .forEach((exercise) => {
         adjustments.push({
           action: "protect_joint",
-          detail: "Reducir una serie y dar mas descanso si decides aplicar la recomendacion.",
-          exerciseId,
-          reason: "Reportaste molestia en la rodilla y este ejercicio suele cargar mas esa zona.",
+          detail: "Reducir una serie y dar más descanso si decides aplicar la recomendación.",
+          exerciseId: exercise.id,
+          reason: "Reportaste molestia en la rodilla y este ejercicio suele cargar más esa zona.",
           title: "Proteger rodilla"
         });
-      }
-    });
+      });
   }
 
   if (checkIn.discomforts.includes("espalda")) {
@@ -241,7 +240,7 @@ const buildWorkoutAdjustments = (workout: WorkoutDay, checkIn: DailyCheckIn | nu
           action: "protect_joint",
           detail: "Reducir una serie y bajar un punto de exigencia hoy.",
           exerciseId: exercise.id,
-          reason: "Reportaste molestia en espalda y este patron demanda estabilidad lumbar.",
+          reason: "Reportaste molestia en espalda y este patrón demanda estabilidad lumbar.",
           title: "Bajar demanda lumbar"
         });
       });
@@ -255,7 +254,7 @@ const buildWorkoutAdjustments = (workout: WorkoutDay, checkIn: DailyCheckIn | nu
           action: "protect_joint",
           detail: "Alargar descanso y mantener un peso muy controlado.",
           exerciseId: exercise.id,
-          reason: "Reportaste molestia en hombro y este patron puede irritarlo si se apura.",
+          reason: "Reportaste molestia en hombro y este patrón puede irritarlo si se apura.",
           title: "Cuidar hombro"
         });
       });
@@ -266,19 +265,19 @@ const buildWorkoutAdjustments = (workout: WorkoutDay, checkIn: DailyCheckIn | nu
       action: "shorten_session",
       detail:
         checkIn.timeAvailable === "30_min"
-          ? "Recortar accesorios base al final de la sesion."
-          : "Dejar como opcional el ultimo accesorio base.",
+          ? "Recortar accesorios base al final de la sesión."
+          : "Dejar como opcional el último accesorio base.",
       reason: "Hoy tienes menos tiempo y conviene asegurar el bloque principal primero.",
-      title: "Ajustar duracion"
+      title: "Ajustar duración"
     });
   }
 
   if (checkIn.energy === "baja" || checkIn.sleep === "mal" || checkIn.sleep === "regular") {
     adjustments.push({
       action: "extend_rest",
-      detail: "Agregar 15 segundos de descanso en los basicos principales.",
-      reason: "El estado de energia sugiere dar mas espacio para sostener tecnica.",
-      title: "Respirar mas entre series"
+      detail: "Agregar 15 segundos de descanso en los básicos principales.",
+      reason: "El estado de energía sugiere dar más espacio para sostener técnica.",
+      title: "Respirar más entre series"
     });
   }
 
@@ -341,12 +340,12 @@ export const buildWorkoutCoachPlan = ({
   const reasons =
     checkIn == null
       ? [
-          `${athleteProfile.name} entrena con prioridad en tecnica, bajo impacto y progresion gradual.`,
-          "Sin check-in del dia, el plan mantiene la estructura base con recomendaciones por historial."
+          `${athleteProfile.name} entrena con prioridad en técnica, bajo impacto y progresión gradual.`,
+          "Sin check-in del día, el plan mantiene la estructura base con recomendaciones por historial."
         ]
       : [
-          `Sueno: ${checkIn.sleep}.`,
-          `Energia: ${checkIn.energy}.`,
+          `Sueño: ${checkIn.sleep}.`,
+          `Energía: ${checkIn.energy}.`,
           checkIn.discomforts.length > 0
             ? `Molestias reportadas: ${checkIn.discomforts.join(", ")}.`
             : "Sin molestias reportadas.",
@@ -374,9 +373,9 @@ export const buildWorkoutCoachPlan = ({
     reasons,
     summary:
       checkIn == null
-        ? "Plan base listo para entrenar sin friccion."
+        ? "Plan base listo para entrenar sin fricción."
         : strategy === "applied"
-          ? "Aplicamos un ajuste inteligente para acompanar como llegaste hoy."
+          ? "Aplicamos un ajuste inteligente para acompañar como llegaste hoy."
           : "Se mantuvo la rutina original, pero las recomendaciones siguen visibles."
   };
 };

@@ -4,11 +4,6 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   appType: "spa",
   plugins: [react()],
-  resolve: {
-    alias: {
-      "lottie-web": "lottie-web/build/player/lottie_light.js"
-    }
-  },
   server: {
     host: true
   },

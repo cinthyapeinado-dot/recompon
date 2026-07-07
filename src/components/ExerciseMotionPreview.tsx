@@ -1,6 +1,6 @@
-import Lottie from "lottie-react";
-import type { Exercise } from "../types";
-import { resolveExerciseMedia } from "../utils/exerciseMedia";
+import { useEffect, useState } from "react";
+import { resolveExerciseMedia } from "../services/exerciseMedia";
+import type { Exercise, ExerciseMediaResource } from "../types";
 
 type ExerciseMotionPreviewProps = {
   exercise: Exercise;
@@ -16,31 +16,54 @@ const motionCopy: Record<Exercise["motion"], string> = {
   curl: "Controla subida y bajada con el musculo objetivo.",
   calf: "Pausa arriba y baja lento.",
   plank: "Sosten tension sin hundir la zona lumbar.",
-  walk: "Ritmo comodo, respiracion sostenida.",
+  walk: "Ritmo cómodo, respiración sostenida.",
   rest: "Recupera, hidrata y respira."
 };
 
 export const ExerciseMotionPreview = ({ exercise }: ExerciseMotionPreviewProps) => {
-  const media = resolveExerciseMedia(exercise.mediaKey, exercise.name);
+  const [media, setMedia] = useState<ExerciseMediaResource | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    setMedia(null);
+
+    resolveExerciseMedia(exercise).then((resolvedMedia) => {
+      if (isMounted) {
+        setMedia(resolvedMedia);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [exercise.equipment, exercise.externalExerciseId, exercise.mediaKey, exercise.name]);
+
+  if (!media) {
+    return (
+      <section className="motion-stage relative h-[228px] overflow-hidden rounded-[28px]">
+        <div className="motion-grid absolute inset-0" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(38,221,255,0.16),transparent_24%),radial-gradient(circle_at_82%_78%,rgba(10,87,248,0.12),transparent_28%)]" />
+        <div className="absolute inset-y-0 left-[-32%] w-[32%] bg-gradient-to-r from-transparent via-white/12 to-transparent animate-[sheen_1.6s_ease-in-out_infinite]" />
+        <div className="relative z-[1] flex h-full flex-col justify-end gap-3 p-5">
+          <p className="eyebrow">Demostración</p>
+          <div className="space-y-2">
+            <div className="h-4 w-28 rounded-full bg-white/8" />
+            <div className="h-4 w-44 rounded-full bg-white/8" />
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   const overlay = (
     <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] bg-gradient-to-t from-graphite-950 via-graphite-950/84 to-transparent px-5 pb-5 pt-12">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="eyebrow">Guia visual</p>
-          <p className="mt-2 text-sm leading-6 text-fog-300">{motionCopy[exercise.motion]}</p>
-        </div>
-        {media.kind === "placeholder" && <span className="badge-soft">Proximamente</span>}
-      </div>
-      {media.kind === "placeholder" && (
-        <p className="mt-3 text-[0.95rem] font-semibold text-fog-100">
-          Animacion disponible proximamente
-        </p>
-      )}
+      <p className="eyebrow">Guía visual</p>
+      <p className="mt-2 text-sm leading-6 text-fog-300">{motionCopy[exercise.motion]}</p>
     </div>
   );
 
-  const previewBackdrop = media.previewSrc ? (
+  const previewBackdrop = media.previewSrc && media.kind !== "image" ? (
     <img
       src={media.previewSrc}
       alt=""
@@ -73,7 +96,7 @@ export const ExerciseMotionPreview = ({ exercise }: ExerciseMotionPreviewProps) 
           loop
           muted
           playsInline
-          poster={media.previewSrc ?? undefined}
+          poster={media.posterSrc ?? undefined}
           className="absolute inset-0 h-full w-full object-cover"
         />
         {overlay}
@@ -81,57 +104,25 @@ export const ExerciseMotionPreview = ({ exercise }: ExerciseMotionPreviewProps) 
     );
   }
 
-  if (media.kind === "svg" && media.src) {
+  if (media.kind === "image" && media.src) {
     return (
       <section className="motion-stage relative h-[228px] overflow-hidden rounded-[28px]">
-        {previewBackdrop}
         <img
           src={media.src}
           alt={media.alt}
-          className="absolute inset-0 h-full w-full object-contain p-6"
+          className="absolute inset-0 h-full w-full object-cover"
         />
         {overlay}
       </section>
     );
   }
 
-  if (media.kind === "lottie" && media.animationData) {
-    return (
-      <section className="motion-stage relative h-[228px] overflow-hidden rounded-[28px]">
-        {previewBackdrop}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(38,221,255,0.18),transparent_26%),radial-gradient(circle_at_82%_78%,rgba(10,87,248,0.16),transparent_28%)]" />
-        <div className="relative z-[1] h-full p-4">
-          <Lottie
-            animationData={media.animationData}
-            loop
-            autoplay
-            aria-label={media.alt}
-            className="h-full w-full"
-          />
-        </div>
-        {overlay}
-      </section>
-    );
-  }
-
   return (
-    <section className="motion-stage relative h-[228px] overflow-hidden rounded-[28px] p-5">
-      {previewBackdrop}
+    <section className="motion-stage relative h-[228px] overflow-hidden rounded-[28px]">
       <div className="motion-grid absolute inset-0" />
-      <div className={`motion-orbit motion-${exercise.motion}`} />
-      <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-graphite-950/40" />
-      <div className="relative z-[1] flex h-full flex-col justify-between">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="eyebrow">Guia visual</p>
-            <h3 className="mt-2 text-[1.15rem] font-semibold text-fog-100">
-              Animacion disponible proximamente
-            </h3>
-          </div>
-          <span className="badge-soft">Proximamente</span>
-        </div>
-
-        <p className="max-w-[18rem] text-sm leading-6 text-fog-300">{motionCopy[exercise.motion]}</p>
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(38,221,255,0.14),transparent_24%),radial-gradient(circle_at_82%_78%,rgba(10,87,248,0.12),transparent_28%)]" />
+      <div className="relative z-[1] flex h-full items-center justify-center px-8 text-center">
+        <p className="text-[1rem] font-semibold text-fog-100">Animación disponible próximamente</p>
       </div>
     </section>
   );

@@ -3,11 +3,6 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
-  resolve: {
-    alias: {
-      "lottie-web": "lottie-web/build/player/lottie_light.js"
-    }
-  },
   test: {
     environment: "jsdom",
     globals: true,

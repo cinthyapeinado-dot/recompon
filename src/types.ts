@@ -36,18 +36,22 @@ export type ExerciseMotionKind =
   | "walk"
   | "rest";
 
-export type ExerciseMediaKind = "placeholder" | "lottie" | "mp4" | "gif" | "svg";
+export type ExerciseDifficulty = "principiante" | "principiante-intermedia" | "intermedia";
+
+export type ExerciseMediaKind = "placeholder" | "mp4" | "gif" | "image";
 
 export type ExerciseMediaResource = {
-  animationData?: unknown;
   alt: string;
   kind: ExerciseMediaKind;
+  posterSrc?: string | null;
   previewSrc: string | null;
+  source: "external" | "local" | "placeholder" | "preview";
   src?: string;
 };
 
 export type Exercise = {
   id: string;
+  externalExerciseId?: string;
   mediaKey: string;
   name: string;
   sets: string;
@@ -55,6 +59,9 @@ export type Exercise = {
   rest: string;
   priority: Priority;
   muscleGroup: string;
+  equipment: string;
+  difficulty: ExerciseDifficulty;
+  kneeFriendly: boolean;
   motion: ExerciseMotionKind;
   jointLoad: "low" | "medium" | "high";
   defaultUnit: WeightUnit;
