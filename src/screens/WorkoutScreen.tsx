@@ -1,59 +1,122 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "../components/Card";
-import { CircularProgress } from "../components/CircularProgress";
-import { ExerciseChecklist } from "../components/ExerciseChecklist";
-import { CheckIcon, SparkIcon, WeightIcon } from "../components/Icons";
+import { ExerciseHistoryCard } from "../components/ExerciseHistoryCard";
+import { ExerciseMotionPreview } from "../components/ExerciseMotionPreview";
+import { ArrowLeftIcon, CheckIcon, TimerIcon } from "../components/Icons";
 import { ProgressBar } from "../components/ProgressBar";
-import { RestTimerCard } from "../components/RestTimerCard";
 import { SectionIntro } from "../components/SectionIntro";
-import { StatTile } from "../components/StatTile";
-import type { DayId, Exercise, WorkoutDay } from "../types";
+import type {
+  ExerciseProgressState,
+  FeltArea,
+  PlannedExercise,
+  WeightUnit,
+  WorkoutDay
+} from "../types";
 import { cn } from "../utils/cn";
-import { countLoggedWeights, getRestPresets, parseRestToSeconds } from "../utils/training";
+import { getSuggestedPair, getRecommendationReasonList } from "../utils/recommendations";
+import { formatTimer } from "../utils/training";
+import { convertWeight, formatWeightNumber, parseWeightValue } from "../utils/units";
 
 type WorkoutScreenProps = {
+  canGoPrevious: boolean;
+  currentExercise: PlannedExercise | null;
+  currentExerciseIndex: number;
   currentWeek: number;
-  checkedIds: string[];
-  isCompleted: boolean;
+  exerciseCount: number;
+  isLastExercise: boolean;
+  isWorkoutComplete: boolean;
+  lastExerciseDate: string | null;
+  lastExerciseRpe: number | null;
+  lastExerciseUnit: WeightUnit | null;
+  lastExerciseWeight: string | null;
+  nextExerciseName: string | null;
   notificationEnabled: boolean;
-  onMarkCompleted: (dayId: DayId) => void;
+  onAdvance: () => void;
+  onApplyRecommendation: () => void;
+  onCompleteWorkout: () => void;
+  onGoPrevious: () => void;
+  onKeepRecommendation: () => void;
   onRestTimerComplete: (workoutTitle: string, seconds: number) => void;
-  onToggleExercise: (exerciseId: string) => void;
-  onWeightChange: (exerciseId: string, value: string) => void;
-  previousWeights: Record<string, string>;
-  weights: Record<string, string>;
+  onSetFeltArea: (value: FeltArea) => void;
+  onSetRpe: (value: number) => void;
+  onSetWeightUnit: (value: WeightUnit) => void;
+  onSetWeightValue: (value: string) => void;
+  onToggleSet: (setIndex: number) => void;
+  sparklinePoints: number[];
+  state: ExerciseProgressState | null;
   workout: WorkoutDay;
 };
 
+const feltAreas: FeltArea[] = ["gluteo", "femoral", "cuadriceps", "espalda", "otro"];
+const rpeValues = [6, 7, 8, 9, 10];
+
+const feltAreaLabel: Record<FeltArea, string> = {
+  gluteo: "Glúteo",
+  femoral: "Femoral",
+  cuadriceps: "Cuádriceps",
+  espalda: "Espalda",
+  otro: "Otro"
+};
+
 export const WorkoutScreen = ({
+  canGoPrevious,
+  currentExercise,
+  currentExerciseIndex,
   currentWeek,
-  checkedIds,
-  isCompleted,
+  exerciseCount,
+  isLastExercise,
+  isWorkoutComplete,
+  lastExerciseDate,
+  lastExerciseRpe,
+  lastExerciseUnit,
+  lastExerciseWeight,
+  nextExerciseName,
   notificationEnabled,
-  onMarkCompleted,
+  onAdvance,
+  onApplyRecommendation,
+  onCompleteWorkout,
+  onGoPrevious,
+  onKeepRecommendation,
   onRestTimerComplete,
-  onToggleExercise,
-  onWeightChange,
-  previousWeights,
-  weights,
+  onSetFeltArea,
+  onSetRpe,
+  onSetWeightUnit,
+  onSetWeightValue,
+  onToggleSet,
+  sparklinePoints,
+  state,
   workout
 }: WorkoutScreenProps) => {
-  const completedExerciseCount = checkedIds.length;
-  const totalExercises = workout.exercises.length;
-  const isStrengthDay = workout.kind === "strength";
-  const loggedWeights = countLoggedWeights(weights);
-  const restPresets = isStrengthDay ? getRestPresets(workout.exercises) : [];
-  const defaultRest = restPresets[0] ?? 60;
-
-  const [selectedPreset, setSelectedPreset] = useState(defaultRest);
-  const [secondsLeft, setSecondsLeft] = useState(defaultRest);
+  const advanceTimeoutRef = useRef<number | null>(null);
+  const [secondsLeft, setSecondsLeft] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
+  const [statusMessage, setStatusMessage] = useState(
+    "Marca cada serie y deja que la app te lleve al siguiente paso."
+  );
+  const clearAdvanceTimeout = () => {
+    if (advanceTimeoutRef.current != null) {
+      window.clearTimeout(advanceTimeoutRef.current);
+      advanceTimeoutRef.current = null;
+    }
+  };
+
+  useEffect(
+    () => () => clearAdvanceTimeout(),
+    []
+  );
 
   useEffect(() => {
-    setSelectedPreset(defaultRest);
-    setSecondsLeft(defaultRest);
+    clearAdvanceTimeout();
+    if (!currentExercise) {
+      setIsRunning(false);
+      setSecondsLeft(0);
+      return;
+    }
+
     setIsRunning(false);
-  }, [defaultRest, workout.id]);
+    setSecondsLeft(currentExercise.plannedRestSeconds);
+    setStatusMessage("Marca cada serie y deja que la app te lleve al siguiente paso.");
+  }, [currentExercise]);
 
   useEffect(() => {
     if (!isRunning) {
@@ -62,176 +125,357 @@ export const WorkoutScreen = ({
 
     if (secondsLeft <= 0) {
       setIsRunning(false);
-      onRestTimerComplete(workout.title, selectedPreset);
+      setStatusMessage("Comienza la siguiente serie.");
+      if ("vibrate" in navigator) {
+        navigator.vibrate([120, 80, 120]);
+      }
+      onRestTimerComplete(workout.title, currentExercise?.plannedRestSeconds ?? 0);
       return;
     }
 
     const timeoutId = window.setTimeout(() => {
-      setSecondsLeft((currentValue) => currentValue - 1);
+      setSecondsLeft((current) => current - 1);
     }, 1000);
 
     return () => window.clearTimeout(timeoutId);
-  }, [isRunning, onRestTimerComplete, secondsLeft, selectedPreset, workout.title]);
+  }, [currentExercise?.plannedRestSeconds, isRunning, onRestTimerComplete, secondsLeft, workout.title]);
 
-  const handleSelectPreset = (seconds: number) => {
-    setSelectedPreset(seconds);
-    setSecondsLeft(seconds);
+  const parsedWeight = state?.weightValue ? parseWeightValue(state.weightValue) : null;
+  const weightPair = useMemo(() => {
+    if (parsedWeight == null || !state) {
+      return null;
+    }
+
+    const secondaryUnit: WeightUnit = state.weightUnit === "kg" ? "lb" : "kg";
+    const secondaryValue = convertWeight(parsedWeight, state.weightUnit, secondaryUnit);
+    return {
+      primary: formatWeightNumber(parsedWeight, state.weightUnit),
+      secondary: formatWeightNumber(secondaryValue, secondaryUnit)
+    };
+  }, [parsedWeight, state]);
+
+  if (workout.kind !== "strength") {
+    return (
+      <div className="space-y-5">
+        <SectionIntro
+          eyebrow={`Semana ${currentWeek}`}
+          title={workout.title}
+          description={workout.focus}
+          side={<span className="badge-soft">{workout.label}</span>}
+        />
+
+        <Card className="space-y-4">
+          <div>
+            <p className="eyebrow">Plan del día</p>
+            <h2 className="mt-2 text-[1.7rem] font-semibold text-fog-100">
+              {workout.details ?? workout.focus}
+            </h2>
+          </div>
+          <div className="card-subtle text-sm leading-7 text-fog-300">{workout.microcopy}</div>
+          <div className="card-subtle text-sm leading-7 text-fog-300">{workout.tip}</div>
+          <button type="button" onClick={onCompleteWorkout} className="primary-button w-full">
+            Marcar día como completado
+          </button>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!currentExercise || !state) {
+    return (
+      <div className="space-y-5">
+        <SectionIntro
+          eyebrow={`Semana ${currentWeek}`}
+          title={`${workout.title} lista`}
+          description="Todas las series del bloque actual ya están completadas."
+          side={<span className="badge-strong">Hecho</span>}
+        />
+
+        <Card className="space-y-4">
+          <div className="card-subtle text-sm leading-7 text-fog-300">
+            Cierra la sesión para guardar el historial completo, el RPE y las cargas de hoy.
+          </div>
+          <button type="button" onClick={onCompleteWorkout} className="primary-button w-full">
+            Finalizar entrenamiento
+          </button>
+        </Card>
+      </div>
+    );
+  }
+
+  const completedSetCount = state.completedSets.filter(Boolean).length;
+  const progressValue = (currentExerciseIndex + 1) / Math.max(exerciseCount, 1);
+  const suggestedPair = getSuggestedPair(currentExercise.recommendation);
+  const recommendationReasons = getRecommendationReasonList(currentExercise.recommendation);
+
+  const handleToggleSet = (setIndex: number) => {
+    clearAdvanceTimeout();
+
+    const isActivating = !state.completedSets[setIndex];
+    const nextCompletedCount = completedSetCount + (isActivating ? 1 : -1);
+    onToggleSet(setIndex);
+
+    if (!isActivating) {
+      setIsRunning(false);
+      setSecondsLeft(currentExercise.plannedRestSeconds);
+      setStatusMessage("Serie reabierta. Ajusta lo que necesites.");
+      return;
+    }
+
+    if (nextCompletedCount < currentExercise.plannedSets) {
+      setSecondsLeft(currentExercise.plannedRestSeconds);
+      setIsRunning(true);
+      setStatusMessage("Descansa. Te avisaremos para la siguiente serie.");
+      if ("vibrate" in navigator) {
+        navigator.vibrate(50);
+      }
+      return;
+    }
+
     setIsRunning(false);
-  };
+    setSecondsLeft(currentExercise.plannedRestSeconds);
 
-  const handleStartRestFromExercise = (exercise: Exercise) => {
-    const nextSeconds = parseRestToSeconds(exercise.rest);
-    setSelectedPreset(nextSeconds);
-    setSecondsLeft(nextSeconds);
-    setIsRunning(true);
+    if ("vibrate" in navigator) {
+      navigator.vibrate([80, 50, 100]);
+    }
+
+    if (!isLastExercise) {
+      setStatusMessage("Bloque listo. Pasando al siguiente ejercicio...");
+      advanceTimeoutRef.current = window.setTimeout(() => {
+        advanceTimeoutRef.current = null;
+        onAdvance();
+      }, 1100);
+      return;
+    }
+
+    setStatusMessage("Último ejercicio completo. Ya puedes cerrar la sesión.");
   };
 
   return (
     <div className="space-y-5">
       <SectionIntro
         eyebrow={`Semana ${currentWeek}`}
-        title={workout.title}
-        description={workout.focus}
-        side={
-          isCompleted ? (
-            <span className="top-pill">
-              <CheckIcon className="h-3.5 w-3.5" />
-              Completado
-            </span>
-          ) : undefined
-        }
+        title={currentExercise.name}
+        description={currentExercise.muscleGroup}
+        side={<span className="badge-soft">{currentExerciseIndex + 1}/{exerciseCount}</span>}
       />
 
-      <Card className="overflow-hidden px-5 py-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-50">
-              Sesión del día
-            </p>
-            <p className="mt-2 text-[1.95rem] font-semibold tracking-[-0.05em] text-ink-200">
-              {workout.label}
-            </p>
-            <p className="mt-3 max-w-[16rem] text-[0.95rem] leading-7 text-ink-50">
-              {workout.microcopy}
-            </p>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <ProgressBar value={progressValue * 100} max={100} />
+            <p className="mt-3 text-sm text-fog-300">{statusMessage}</p>
           </div>
-          {isStrengthDay ? (
-            <CircularProgress
-              value={completedExerciseCount}
-              max={Math.max(totalExercises, 1)}
-              label="Checklist"
-              detail={`${completedExerciseCount}/${totalExercises}`}
-              size={88}
-            />
-          ) : (
-            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-blush-100 text-blush-500">
-              <SparkIcon className="h-5 w-5" />
-            </span>
+          {canGoPrevious && (
+            <button
+              type="button"
+              onClick={onGoPrevious}
+              aria-label="Volver al ejercicio anterior"
+              className="secondary-button h-11 w-11 shrink-0 rounded-full p-0"
+            >
+              <ArrowLeftIcon className="h-4 w-4" />
+            </button>
           )}
         </div>
 
-        {isStrengthDay ? (
-          <>
-            <div className="mt-6 grid grid-cols-2 gap-3">
-              <StatTile
-                label="Calentamiento"
-                value={workout.warmup ?? "Listo"}
-                detail="Entrada en calor"
-                tone="light"
-              />
-              <StatTile
-                label="Pesos"
-                value={`${loggedWeights}/${totalExercises}`}
-                detail="Ejercicios con carga"
-                tone="tint"
-              />
-            </div>
+        <ExerciseMotionPreview exercise={currentExercise} />
 
-            <ProgressBar
-              className="mt-5"
-              value={completedExerciseCount}
-              max={Math.max(totalExercises, 1)}
-            />
-          </>
-        ) : (
-          <div className="mt-6 rounded-[28px] bg-white/78 px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.88)]">
-            <p className="text-[11px] uppercase tracking-[0.18em] text-ink-50">Plan del día</p>
-            <p className="mt-2 text-base font-semibold tracking-[-0.03em] text-ink-200">
-              {workout.details}
-            </p>
+        <Card className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="metric-tile px-4 py-4">
+              <p className="eyebrow">Series</p>
+              <p className="mt-2 text-[1.3rem] font-semibold text-fog-100">
+                {completedSetCount}/{currentExercise.plannedSets}
+              </p>
+              <p className="mt-2 text-sm text-fog-300">{currentExercise.reps} por serie</p>
+            </div>
+            <div className="metric-tile metric-tile-tint px-4 py-4">
+              <p className="eyebrow">Descanso</p>
+              <p className="mt-2 text-[1.3rem] font-semibold text-fog-100">
+                {formatTimer(secondsLeft || currentExercise.plannedRestSeconds)}
+              </p>
+              <p className="mt-2 text-sm text-fog-300">
+                {isRunning
+                  ? "Corriendo ahora"
+                  : notificationEnabled
+                    ? "Con aviso local"
+                    : "Sin aviso local"}
+              </p>
+            </div>
           </div>
-        )}
-      </Card>
 
-      {isStrengthDay && (
-        <>
-          <RestTimerCard
-            isRunning={isRunning}
-            notificationsEnabled={notificationEnabled}
-            onReset={() => {
-              setSecondsLeft(selectedPreset);
-              setIsRunning(false);
-            }}
-            onSelectPreset={handleSelectPreset}
-            onToggle={() => {
-              if (secondsLeft <= 0) {
-                setSecondsLeft(selectedPreset);
-              }
-              setIsRunning((currentValue) => !currentValue);
-            }}
-            presets={restPresets}
-            secondsLeft={secondsLeft}
-            selectedPreset={selectedPreset}
-          />
-
-          <Card className="p-0">
-            <div className="flex items-center justify-between gap-3 px-5 pt-5">
+          <div className="card-subtle space-y-4">
+            <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="text-[1.4rem] font-semibold tracking-[-0.04em] text-ink-200">
-                  Ejercicios
-                </h2>
-                <p className="mt-1 text-sm leading-6 text-ink-50">
-                  Marca cada bloque, registra el peso y lanza el descanso desde aquí.
-                </p>
+                <p className="eyebrow">Peso sugerido</p>
+                <h3 className="mt-2 text-[1.3rem] font-semibold text-fog-100">
+                  {suggestedPair
+                    ? `${formatWeightNumber(
+                        suggestedPair.primaryValue,
+                        suggestedPair.primaryUnit
+                      )} · ${formatWeightNumber(
+                        suggestedPair.secondaryValue,
+                        suggestedPair.secondaryUnit
+                      )}`
+                    : "Sin sugerencia numérica"}
+                </h3>
               </div>
-              <span className="ios-chip text-ink-50">
-                <WeightIcon className="h-3.5 w-3.5" />
-                {loggedWeights} pesos
-              </span>
+              <span className="badge-strong">{currentExercise.recommendation.confidence}%</span>
             </div>
-            <div className="px-3 pb-3 pt-4">
-              <ExerciseChecklist
-                checkedIds={checkedIds}
-                exercises={workout.exercises}
-                onStartRest={handleStartRestFromExercise}
-                onToggle={onToggleExercise}
-                onWeightChange={onWeightChange}
-                previousWeights={previousWeights}
-                weights={weights}
-              />
+
+            <p className="text-sm leading-6 text-fog-300">{currentExercise.recommendation.detail}</p>
+
+            <div className="space-y-2">
+              {recommendationReasons.map((reason) => (
+                <div key={reason} className="coach-note">
+                  <p className="text-sm leading-6 text-fog-300">{reason}</p>
+                </div>
+              ))}
             </div>
-          </Card>
-        </>
-      )}
 
-      <Card tone="dark" className="px-5 py-5">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60">
-          Tip del día
-        </p>
-        <p className="mt-3 text-base leading-7 text-white/94">{workout.tip}</p>
-      </Card>
+            <div className="grid grid-cols-2 gap-3">
+              <button type="button" onClick={onApplyRecommendation} className="primary-button">
+                Aplicar recomendación
+              </button>
+              <button type="button" onClick={onKeepRecommendation} className="secondary-button">
+                Mantener rutina
+              </button>
+            </div>
+          </div>
 
-      <button
-        type="button"
-        onClick={() => onMarkCompleted(workout.id)}
-        className={cn(
-          "primary-button mb-4 flex w-full items-center justify-center gap-2",
-          isCompleted && "bg-[linear-gradient(135deg,#4a3834_0%,#6f5a54_100%)]"
-        )}
-      >
-        <CheckIcon className="h-5 w-5" />
-        {isCompleted ? "Sesión completada" : "Marcar día como completado"}
-      </button>
+          <div className="space-y-3">
+            <div className="field-shell">
+              <p className="eyebrow">Peso actual</p>
+              <div className="mt-3 flex items-center gap-3">
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={state.weightValue}
+                  onChange={(event) => onSetWeightValue(event.target.value)}
+                  placeholder={
+                    currentExercise.recommendation.suggestedValue != null
+                      ? String(currentExercise.recommendation.suggestedValue)
+                      : "Ej. 20"
+                  }
+                  className="min-w-0 flex-1 bg-transparent text-[1.3rem] font-semibold text-fog-100 outline-none placeholder:text-fog-400"
+                />
+
+                <div className="segmented">
+                  {(["kg", "lb"] as const).map((unit) => (
+                    <button
+                      key={unit}
+                      type="button"
+                      onClick={() => onSetWeightUnit(unit)}
+                      className={cn(
+                        "rounded-[12px] px-3 py-2 text-sm font-semibold text-fog-300 transition",
+                        state.weightUnit === unit && "segmented-active"
+                      )}
+                    >
+                      {unit.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <p className="mt-3 text-sm text-fog-300">
+                {weightPair
+                  ? `Equivalente automático: ${weightPair.primary} · ${weightPair.secondary}`
+                  : "En cuanto registres una carga, verás su equivalente automático en kg y lb."}
+              </p>
+            </div>
+
+            <ExerciseHistoryCard
+              date={lastExerciseDate}
+              displayWeight={lastExerciseWeight}
+              rpe={lastExerciseRpe}
+              sparklinePoints={sparklinePoints}
+              unit={lastExerciseUnit ?? currentExercise.defaultUnit}
+            />
+          </div>
+
+          <div className="space-y-3">
+            <p className="eyebrow">Series</p>
+            <div className="flex flex-wrap gap-3">
+              {state.completedSets.map((isDone, index) => (
+                <button
+                  key={`${currentExercise.id}-set-${index + 1}`}
+                  type="button"
+                  onClick={() => handleToggleSet(index)}
+                  aria-pressed={isDone}
+                  className={cn("set-bubble", isDone && "set-bubble-active")}
+                >
+                  {isDone ? <CheckIcon className="h-4 w-4" /> : index + 1}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <p className="eyebrow">Nivel de esfuerzo (RPE)</p>
+            <div className="flex flex-wrap gap-2">
+              {rpeValues.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => onSetRpe(value)}
+                  className={cn("choice-chip min-h-[46px] px-4 py-3", state.rpe === value && "choice-chip-active")}
+                >
+                  {value}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <p className="eyebrow">¿Dónde sentiste el ejercicio?</p>
+            <div className="grid grid-cols-2 gap-3">
+              {feltAreas.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => onSetFeltArea(value)}
+                  className={cn(
+                    "choice-chip justify-start",
+                    state.feltArea === value && "choice-chip-active"
+                  )}
+                >
+                  {feltAreaLabel[value]}
+                </button>
+              ))}
+            </div>
+          </div>
+        </Card>
+
+        <Card className="space-y-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="eyebrow">Flujo guiado</p>
+              <h3 className="mt-2 text-[1.2rem] font-semibold text-fog-100">
+                {isLastExercise
+                  ? "Último bloque del día"
+                  : nextExerciseName
+                    ? `Después sigue ${nextExerciseName}`
+                    : "Siguiente paso listo"}
+              </h3>
+            </div>
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-accent-500/12 text-accent-300">
+              <TimerIcon className="h-5 w-5" />
+            </span>
+          </div>
+
+          <p className="text-sm leading-6 text-fog-300">
+            La app arranca descanso cuando marcas una serie y avanza sola al siguiente ejercicio en cuanto terminas este bloque.
+          </p>
+
+          <button
+            type="button"
+            onClick={onCompleteWorkout}
+            disabled={!isWorkoutComplete}
+            className="primary-button w-full"
+          >
+            {isLastExercise ? "Finalizar entrenamiento" : "Guardar avance completo"}
+          </button>
+        </Card>
+      </div>
     </div>
   );
 };

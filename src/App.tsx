@@ -1,29 +1,50 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { athleteProfile } from "./data/athleteProfile";
 import { BottomNav } from "./components/BottomNav";
 import { ConfirmationSheet } from "./components/ConfirmationSheet";
 import { FloatingTodayButton } from "./components/FloatingTodayButton";
-import { TOTAL_PROGRAM_WEEKS, workouts, workoutsById } from "./data/workouts";
+import { workouts, workoutsById } from "./data/workouts";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import { AgendaScreen } from "./screens/AgendaScreen";
+import { CheckInScreen } from "./screens/CheckInScreen";
 import { HomeScreen } from "./screens/HomeScreen";
 import { ProgressionScreen } from "./screens/ProgressionScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { WorkoutScreen } from "./screens/WorkoutScreen";
 import type {
   AppScreen,
+  DailyCheckIn,
   DayId,
+  ExerciseLog,
+  ExerciseProgressState,
   ExerciseWeights,
+  FeltArea,
   NotificationSettings,
+  PlannedExercise,
   ProgressState,
+  SessionStrategy,
+  WeightUnit,
   WorkoutHistoryEntry
 } from "./types";
 import { formatCalendarDate, getDayIdFromDate } from "./utils/date";
+import { buildWorkoutCoachPlan } from "./utils/recommendations";
 import {
   clampWeek,
   createDefaultProgress,
   normalizeProgress
 } from "./utils/progress";
-import { getLatestWeightsForExercises, getWeeksWithActivity } from "./utils/training";
+import {
+  computeExerciseVolumeKg,
+  getExerciseSparklinePoints,
+  getLatestExerciseLog,
+} from "./utils/training";
+import {
+  createExerciseState,
+  findCurrentExerciseIndex,
+  getWeightSummary,
+  isExerciseComplete
+} from "./utils/session";
+import { convertWeight, parseWeightValue } from "./utils/units";
 
 const STORAGE_KEY = "recompon-progress-v1";
 const NOTIFICATION_ICON = "/icons/icon-192.png";
@@ -38,36 +59,53 @@ const getNotificationPermissionState = (): NotificationPermissionState => {
   return Notification.permission;
 };
 
+const energyLabelMap = {
+  suave: "Suave",
+  media: "Media",
+  alta: "Alta"
+} as const;
+
 const buildHistoryEntry = ({
   calendarDate,
-  checkedExerciseIds,
+  checkIn,
   completedAt,
   dayId,
+  exerciseLogs,
+  focus,
+  kind,
+  title,
+  totalVolumeKg,
   week,
   weightsByExercise
 }: {
   calendarDate: string;
-  checkedExerciseIds: string[];
+  checkIn: DailyCheckIn | null;
   completedAt: string;
   dayId: DayId;
+  exerciseLogs: ExerciseLog[];
+  focus: string;
+  kind: WorkoutHistoryEntry["kind"];
+  title: string;
+  totalVolumeKg: number | null;
   week: number;
   weightsByExercise: ExerciseWeights;
-}): WorkoutHistoryEntry => {
-  const workout = workoutsById[dayId];
-
-  return {
-    id: `${calendarDate}-${week}-${dayId}`,
-    completedAt,
-    calendarDate,
-    week,
-    dayId,
-    title: workout.title,
-    focus: workout.focus,
-    kind: workout.kind,
-    checkedExerciseIds,
-    weightsByExercise
-  };
-};
+}): WorkoutHistoryEntry => ({
+  id: `${calendarDate}-${week}-${dayId}`,
+  completedAt,
+  calendarDate,
+  week,
+  dayId,
+  title,
+  focus,
+  kind,
+  checkedExerciseIds: exerciseLogs
+    .filter((log) => log.targetSets > 0 && log.completedSets >= log.targetSets)
+    .map((log) => log.exerciseId),
+  weightsByExercise,
+  checkIn,
+  exerciseLogs,
+  totalVolumeKg
+});
 
 function App() {
   const todayDayId = getDayIdFromDate();
@@ -77,6 +115,7 @@ function App() {
   const [isResetSheetOpen, setResetSheetOpen] = useState(false);
   const [notificationPermission, setNotificationPermission] =
     useState<NotificationPermissionState>(getNotificationPermissionState);
+  const [workoutExerciseIndex, setWorkoutExerciseIndex] = useState(0);
   const [progress, setProgress] = useLocalStorage<ProgressState>(
     STORAGE_KEY,
     createDefaultProgress,
@@ -104,31 +143,127 @@ function App() {
   }, []);
 
   const currentWeekKey = String(progress.currentWeek);
-  const completedDays = progress.completedDaysByWeek[currentWeekKey] ?? [];
-  const checkedExercisesForWeek = progress.checkedExercisesByWeek[currentWeekKey] ?? {};
-  const weightsForWeek = progress.weightsByWeek[currentWeekKey] ?? {};
   const selectedWorkout = workoutsById[selectedDayId];
-  const checkedIds = checkedExercisesForWeek[selectedDayId] ?? [];
-  const weights = weightsForWeek[selectedDayId] ?? {};
   const todayWorkout = workoutsById[todayDayId];
-  const previousWeights = getLatestWeightsForExercises(
-    progress.history.filter((entry) => entry.dayId === selectedDayId),
-    selectedWorkout.exercises.map((exercise) => exercise.id)
+  const completedDays = progress.completedDaysByWeek[currentWeekKey] ?? [];
+  const selectedCheckIn = progress.checkInsByWeek[currentWeekKey]?.[selectedDayId] ?? null;
+  const todayCheckIn = progress.checkInsByWeek[currentWeekKey]?.[todayDayId] ?? null;
+  const selectedStrategy =
+    progress.sessionStrategyByWeek[currentWeekKey]?.[selectedDayId] ?? "pending";
+  const todayStrategy = progress.sessionStrategyByWeek[currentWeekKey]?.[todayDayId] ?? "pending";
+  const selectedDayHistory = useMemo(
+    () => progress.history.filter((entry) => entry.dayId === selectedDayId),
+    [progress.history, selectedDayId]
   );
+  const todayHistory = useMemo(
+    () => progress.history.filter((entry) => entry.dayId === todayDayId),
+    [progress.history, todayDayId]
+  );
+
+  const selectedCoachPlan = useMemo(
+    () =>
+      buildWorkoutCoachPlan({
+        history: selectedDayHistory,
+        strategy: selectedStrategy,
+        workout: selectedWorkout,
+        checkIn: selectedCheckIn
+      }),
+    [selectedCheckIn, selectedDayHistory, selectedStrategy, selectedWorkout]
+  );
+
+  const todayCoachPlan = useMemo(
+    () =>
+      buildWorkoutCoachPlan({
+        history: todayHistory,
+        strategy: todayStrategy,
+        workout: todayWorkout,
+        checkIn: todayCheckIn
+      }),
+    [todayCheckIn, todayHistory, todayStrategy, todayWorkout]
+  );
+
+  const selectedExercisePlans = selectedCoachPlan.exercisePlans;
+  const selectedExerciseStates =
+    progress.exerciseStatesByWeek[currentWeekKey]?.[selectedDayId] ?? {};
+  const normalizedExerciseStates = Object.fromEntries(
+    selectedExercisePlans.map((exercise) => [
+      exercise.id,
+      createExerciseState(exercise, selectedExerciseStates[exercise.id])
+    ])
+  ) as Record<string, ExerciseProgressState>;
+  const derivedWorkoutStartIndex = useMemo(() => {
+    if (selectedExercisePlans.length === 0) {
+      return 0;
+    }
+
+    const firstIncompleteIndex = findCurrentExerciseIndex(
+      selectedExercisePlans,
+      normalizedExerciseStates
+    );
+
+    const allComplete = selectedExercisePlans.every((exercise) =>
+      isExerciseComplete(exercise, normalizedExerciseStates[exercise.id])
+    );
+
+    return allComplete ? selectedExercisePlans.length : firstIncompleteIndex;
+  }, [normalizedExerciseStates, selectedExercisePlans]);
+
+  useEffect(() => {
+    if (activeScreen !== "workout") {
+      return;
+    }
+
+    setWorkoutExerciseIndex(derivedWorkoutStartIndex);
+  }, [activeScreen, progress.currentWeek, selectedDayId]);
+
+  useEffect(() => {
+    if (workoutExerciseIndex > selectedExercisePlans.length) {
+      setWorkoutExerciseIndex(selectedExercisePlans.length);
+    }
+  }, [selectedExercisePlans.length, workoutExerciseIndex]);
+
+  const currentExercise = selectedExercisePlans[workoutExerciseIndex] ?? null;
+  const currentExerciseState = currentExercise
+    ? normalizedExerciseStates[currentExercise.id]
+    : null;
+  const isWorkoutComplete =
+    selectedWorkout.kind !== "strength"
+      ? true
+      : selectedExercisePlans.length > 0 &&
+        selectedExercisePlans.every((exercise) =>
+          isExerciseComplete(exercise, normalizedExerciseStates[exercise.id])
+        );
+  const latestExerciseLog = currentExercise
+    ? getLatestExerciseLog(selectedDayHistory, currentExercise.id)
+    : null;
+  const sparklinePoints = currentExercise
+    ? getExerciseSparklinePoints(selectedDayHistory, currentExercise.id)
+    : [];
   const completionPercentage = Math.round((completedDays.length / workouts.length) * 100);
-  const activeWeeks = getWeeksWithActivity(progress.completedDaysByWeek);
-  const totalSessions = progress.history.length;
-  const recentHistory = progress.history.slice(0, 4);
-  const weeksRemaining = Math.max(TOTAL_PROGRAM_WEEKS - progress.currentWeek, 0);
   const notificationsEnabled =
     notificationPermission === "granted" && progress.notificationSettings.restTimer;
   const hasSessionToday = progress.history.some(
     (entry) => entry.calendarDate === todayCalendarDate
   );
-  const screenKey =
-    activeScreen === "workout"
-      ? `${activeScreen}-${selectedDayId}-${progress.currentWeek}`
-      : activeScreen;
+
+  const syncDerivedDayState = (
+    exercises: PlannedExercise[],
+    dayStates: Record<string, ExerciseProgressState>
+  ) => {
+    const checkedIds = exercises
+      .filter((exercise) => isExerciseComplete(exercise, dayStates[exercise.id]))
+      .map((exercise) => exercise.id);
+
+    const weights = Object.fromEntries(
+      exercises.flatMap((exercise) => {
+        const state = dayStates[exercise.id];
+        const summary = getWeightSummary(state?.weightValue ?? "", state?.weightUnit ?? exercise.defaultUnit);
+        return summary ? [[exercise.id, summary]] : [];
+      })
+    );
+
+    return { checkedIds, weights };
+  };
 
   const sendLocalNotification = async (
     title: string,
@@ -169,8 +304,24 @@ function App() {
     }
   };
 
+  const shouldOpenCheckIn = (dayId: DayId, week: number) => {
+    const workout = workoutsById[dayId];
+    if (workout.kind !== "strength") {
+      return false;
+    }
+
+    const weekKey = String(week);
+    const hasCheckIn = Boolean(progress.checkInsByWeek[weekKey]?.[dayId]);
+    const hasCompletedSession = (progress.completedDaysByWeek[weekKey] ?? []).includes(dayId);
+    const hasExerciseProgress =
+      Object.keys(progress.exerciseStatesByWeek[weekKey]?.[dayId] ?? {}).length > 0;
+
+    return !hasCheckIn && !hasCompletedSession && !hasExerciseProgress;
+  };
+
   const openWorkout = (dayId: DayId, week = progress.currentWeek) => {
     const resolvedWeek = clampWeek(week);
+    const nextScreen = shouldOpenCheckIn(dayId, resolvedWeek) ? "checkin" : "workout";
 
     setProgress((currentValue) =>
       currentValue.currentWeek === resolvedWeek
@@ -181,89 +332,222 @@ function App() {
           }
     );
     setSelectedDayId(dayId);
-    setActiveScreen("workout");
+    setActiveScreen(nextScreen);
   };
 
-  const openToday = () => {
-    setSelectedDayId(todayDayId);
-    setActiveScreen("workout");
-  };
+  const openToday = () => openWorkout(todayDayId);
 
-  const handleToggleExercise = (dayId: DayId, exerciseId: string) => {
+  const upsertExerciseState = (
+    exercise: PlannedExercise,
+    updater: (currentValue: ExerciseProgressState) => ExerciseProgressState
+  ) => {
     setProgress((currentValue) => {
       const weekKey = String(currentValue.currentWeek);
-      const weekChecks = currentValue.checkedExercisesByWeek[weekKey] ?? {};
-      const dayChecks = weekChecks[dayId] ?? [];
-      const nextChecks = dayChecks.includes(exerciseId)
-        ? dayChecks.filter((id) => id !== exerciseId)
-        : [...dayChecks, exerciseId];
+      const weekStates = currentValue.exerciseStatesByWeek[weekKey] ?? {};
+      const dayStates = weekStates[selectedDayId] ?? {};
+      const nextState = updater(createExerciseState(exercise, dayStates[exercise.id]));
+      const nextDayStates = {
+        ...dayStates,
+        [exercise.id]: nextState
+      };
+      const { checkedIds, weights } = syncDerivedDayState(selectedExercisePlans, nextDayStates);
 
       return {
         ...currentValue,
+        exerciseStatesByWeek: {
+          ...currentValue.exerciseStatesByWeek,
+          [weekKey]: {
+            ...weekStates,
+            [selectedDayId]: nextDayStates
+          }
+        },
         checkedExercisesByWeek: {
           ...currentValue.checkedExercisesByWeek,
           [weekKey]: {
-            ...weekChecks,
-            [dayId]: nextChecks
+            ...(currentValue.checkedExercisesByWeek[weekKey] ?? {}),
+            [selectedDayId]: checkedIds
+          }
+        },
+        weightsByWeek: {
+          ...currentValue.weightsByWeek,
+          [weekKey]: {
+            ...(currentValue.weightsByWeek[weekKey] ?? {}),
+            [selectedDayId]: weights
           }
         }
       };
     });
   };
 
-  const handleWeightChange = (dayId: DayId, exerciseId: string, value: string) => {
-    setProgress((currentValue) => {
-      const weekKey = String(currentValue.currentWeek);
-      const weekWeights = currentValue.weightsByWeek[weekKey] ?? {};
-      const dayWeights = weekWeights[dayId] ?? {};
-      const nextDayWeights = { ...dayWeights };
-      const trimmedValue = value.trim();
+  const handleToggleSet = (setIndex: number) => {
+    if (!currentExercise) {
+      return;
+    }
 
-      if (trimmedValue) {
-        nextDayWeights[exerciseId] = trimmedValue;
-      } else {
-        delete nextDayWeights[exerciseId];
-      }
-
-      const nextWeekWeights = { ...weekWeights };
-
-      if (Object.keys(nextDayWeights).length > 0) {
-        nextWeekWeights[dayId] = nextDayWeights;
-      } else {
-        delete nextWeekWeights[dayId];
-      }
-
-      const nextWeightsByWeek = { ...currentValue.weightsByWeek };
-
-      if (Object.keys(nextWeekWeights).length > 0) {
-        nextWeightsByWeek[weekKey] = nextWeekWeights;
-      } else {
-        delete nextWeightsByWeek[weekKey];
-      }
+    upsertExerciseState(currentExercise, (currentValue) => {
+      const nextCompletedSets = [...currentValue.completedSets];
+      nextCompletedSets[setIndex] = !nextCompletedSets[setIndex];
 
       return {
         ...currentValue,
-        weightsByWeek: nextWeightsByWeek
+        completedSets: nextCompletedSets,
+        updatedAt: new Date().toISOString()
       };
     });
+  };
+
+  const handleWeightValueChange = (value: string) => {
+    if (!currentExercise) {
+      return;
+    }
+
+    upsertExerciseState(currentExercise, (currentValue) => ({
+      ...currentValue,
+      weightValue: value.trimStart(),
+      updatedAt: new Date().toISOString()
+    }));
+  };
+
+  const handleWeightUnitChange = (unit: WeightUnit) => {
+    if (!currentExercise) {
+      return;
+    }
+
+    upsertExerciseState(currentExercise, (currentValue) => ({
+      ...currentValue,
+      weightUnit: unit,
+      updatedAt: new Date().toISOString()
+    }));
+  };
+
+  const handleRpeChange = (value: number) => {
+    if (!currentExercise) {
+      return;
+    }
+
+    upsertExerciseState(currentExercise, (currentValue) => ({
+      ...currentValue,
+      rpe: value,
+      updatedAt: new Date().toISOString()
+    }));
+  };
+
+  const handleFeltAreaChange = (value: FeltArea) => {
+    if (!currentExercise) {
+      return;
+    }
+
+    upsertExerciseState(currentExercise, (currentValue) => ({
+      ...currentValue,
+      feltArea: value,
+      updatedAt: new Date().toISOString()
+    }));
+  };
+
+  const handleApplyRecommendation = () => {
+    if (!currentExercise || currentExercise.recommendation.suggestedValue == null) {
+      return;
+    }
+
+    upsertExerciseState(currentExercise, (currentValue) => ({
+      ...currentValue,
+      recommendationDecision: "applied",
+      weightUnit: currentExercise.recommendation.suggestedUnit,
+      weightValue: String(currentExercise.recommendation.suggestedValue),
+      updatedAt: new Date().toISOString()
+    }));
+  };
+
+  const handleKeepRecommendation = () => {
+    if (!currentExercise) {
+      return;
+    }
+
+    upsertExerciseState(currentExercise, (currentValue) => ({
+      ...currentValue,
+      recommendationDecision: "kept",
+      updatedAt: new Date().toISOString()
+    }));
   };
 
   const handleMarkCompleted = (dayId: DayId) => {
     setProgress((currentValue) => {
       const weekKey = String(currentValue.currentWeek);
       const currentCompletedDays = currentValue.completedDaysByWeek[weekKey] ?? [];
-      const checkedExerciseIds = [
-        ...(currentValue.checkedExercisesByWeek[weekKey]?.[dayId] ?? [])
-      ];
-      const weightsByExercise = {
-        ...(currentValue.weightsByWeek[weekKey]?.[dayId] ?? {})
-      };
+      const dayStates = currentValue.exerciseStatesByWeek[weekKey]?.[dayId] ?? {};
+      const plan =
+        dayId === selectedDayId
+          ? selectedCoachPlan
+          : buildWorkoutCoachPlan({
+              history: currentValue.history.filter((entry) => entry.dayId === dayId),
+              strategy: currentValue.sessionStrategyByWeek[weekKey]?.[dayId] ?? "pending",
+              workout: workoutsById[dayId],
+              checkIn: currentValue.checkInsByWeek[weekKey]?.[dayId] ?? null
+            });
+      const weightsByExercise = Object.fromEntries(
+        plan.exercisePlans.flatMap((exercise) => {
+          const state = createExerciseState(exercise, dayStates[exercise.id]);
+          const summary = getWeightSummary(state.weightValue, state.weightUnit);
+          return summary ? [[exercise.id, summary]] : [];
+        })
+      );
+
+      const exerciseLogs = plan.exercisePlans.map((exercise) => {
+        const state = createExerciseState(exercise, dayStates[exercise.id]);
+        const numericWeight = parseWeightValue(state.weightValue);
+        const weightKg =
+          numericWeight == null
+            ? null
+            : state.weightUnit === "kg"
+              ? numericWeight
+              : convertWeight(numericWeight, "lb", "kg");
+        const weightLb =
+          numericWeight == null
+            ? null
+            : state.weightUnit === "lb"
+              ? numericWeight
+              : convertWeight(numericWeight, "kg", "lb");
+
+        return {
+          completedSets: state.completedSets.filter(Boolean).length,
+          completedSetsMask: [...state.completedSets],
+          exerciseId: exercise.id,
+          exerciseName: exercise.name,
+          feltArea: state.feltArea,
+          loggedWeight: state.weightValue.trim(),
+          muscleGroup: exercise.muscleGroup,
+          recommendationDecision: state.recommendationDecision,
+          restSeconds: exercise.plannedRestSeconds,
+          rpe: state.rpe,
+          targetSets: exercise.plannedSets,
+          weightKg,
+          weightLb,
+          weightUnit: state.weightUnit
+        } satisfies ExerciseLog;
+      });
+
+      const totalVolumeKg =
+        exerciseLogs.length > 0
+          ? exerciseLogs.reduce(
+              (total, exerciseLog, index) =>
+                total + computeExerciseVolumeKg(exerciseLog, plan.exercisePlans[index].reps),
+              0
+            )
+          : null;
+
       const completedAt = new Date().toISOString();
+      const resolvedCalendarDate =
+        currentValue.checkInsByWeek[weekKey]?.[dayId]?.calendarDate ?? todayCalendarDate;
       const historyEntry = buildHistoryEntry({
-        calendarDate: todayCalendarDate,
-        checkedExerciseIds,
+        calendarDate: resolvedCalendarDate,
+        checkIn: currentValue.checkInsByWeek[weekKey]?.[dayId] ?? null,
         completedAt,
         dayId,
+        exerciseLogs,
+        focus: workoutsById[dayId].focus,
+        kind: workoutsById[dayId].kind,
+        title: workoutsById[dayId].title,
+        totalVolumeKg,
         week: currentValue.currentWeek,
         weightsByExercise
       });
@@ -282,6 +566,8 @@ function App() {
         ]
       };
     });
+
+    setActiveScreen("progression");
   };
 
   const handleChangeWeek = (week: number) => {
@@ -315,7 +601,7 @@ function App() {
   const handleSendTestNotification = () =>
     void sendLocalNotification(
       "Recompón",
-      "Tus avisos locales ya están listos para acompañarte en el gym.",
+      "Tus avisos locales ya están listos para acompañarte durante el entrenamiento.",
       { tag: "recompon-test" }
     );
 
@@ -326,9 +612,49 @@ function App() {
 
     void sendLocalNotification(
       "Descanso terminado",
-      `Vuelve a ${workoutTitle}. Ya pasaron ${seconds} segundos.`,
+      `Comienza la siguiente serie de ${workoutTitle}. Ya pasaron ${seconds} segundos.`,
       { tag: `rest-${workoutTitle}` }
     );
+  };
+
+  const handleCheckInComplete = (
+    value: Omit<DailyCheckIn, "calendarDate" | "createdAt" | "dayId" | "week">,
+    strategy: SessionStrategy
+  ) => {
+    const nextCheckIn: DailyCheckIn = {
+      calendarDate: todayCalendarDate,
+      createdAt: new Date().toISOString(),
+      dayId: selectedDayId,
+      energy: value.energy,
+      discomforts: value.discomforts,
+      sleep: value.sleep,
+      timeAvailable: value.timeAvailable,
+      week: progress.currentWeek
+    };
+
+    setProgress((currentValue) => {
+      const weekKey = String(currentValue.currentWeek);
+
+      return {
+        ...currentValue,
+        checkInsByWeek: {
+          ...currentValue.checkInsByWeek,
+          [weekKey]: {
+            ...(currentValue.checkInsByWeek[weekKey] ?? {}),
+            [selectedDayId]: nextCheckIn
+          }
+        },
+        sessionStrategyByWeek: {
+          ...currentValue.sessionStrategyByWeek,
+          [weekKey]: {
+            ...(currentValue.sessionStrategyByWeek[weekKey] ?? {}),
+            [selectedDayId]: strategy
+          }
+        }
+      };
+    });
+
+    setActiveScreen("workout");
   };
 
   const handleConfirmReset = () => {
@@ -337,6 +663,7 @@ function App() {
       notificationSettings: currentValue.notificationSettings
     }));
     setSelectedDayId(todayDayId);
+    setWorkoutExerciseIndex(0);
     setActiveScreen("home");
     setResetSheetOpen(false);
   };
@@ -360,7 +687,7 @@ function App() {
 
     void sendLocalNotification(
       "Plan del día listo",
-      `Hoy toca ${todayWorkout.title}. Entra a Recompón y deja marcada tu sesión.`,
+      `Hoy toca ${todayWorkout.title}. Entra a Recompón y deja que la app te lleve ejercicio por ejercicio.`,
       { tag: `daily-${todayCalendarDate}` }
     ).then((wasSent) => {
       if (!wasSent) {
@@ -391,16 +718,25 @@ function App() {
       case "home":
         return (
           <HomeScreen
-            activeWeeks={activeWeeks}
-            completedDaysCount={completedDays.length}
+            athleteName={athleteProfile.name}
             currentWeek={progress.currentWeek}
-            onOpenAgenda={() => setActiveScreen("agenda")}
-            onOpenProgression={() => setActiveScreen("progression")}
+            estimatedDurationMinutes={todayCoachPlan.estimatedDurationMinutes}
+            expectedEnergy={energyLabelMap[todayWorkout.expectedEnergy]}
+            focus={todayWorkout.focus}
             onOpenToday={openToday}
-            recentHistory={recentHistory}
-            todayWorkout={todayWorkout}
-            totalSessions={totalSessions}
-            weeksRemaining={weeksRemaining}
+            todayLabel={todayWorkout.label}
+            todayTitle={todayWorkout.title}
+          />
+        );
+      case "checkin":
+        return (
+          <CheckInScreen
+            calendarDate={todayCalendarDate}
+            currentWeek={progress.currentWeek}
+            history={todayHistory}
+            initialValue={todayCheckIn}
+            onComplete={handleCheckInComplete}
+            workout={todayWorkout}
           />
         );
       case "agenda":
@@ -418,18 +754,42 @@ function App() {
       case "workout":
         return (
           <WorkoutScreen
-            checkedIds={checkedIds}
+            canGoPrevious={workoutExerciseIndex > 0}
+            currentExercise={currentExercise}
+            currentExerciseIndex={workoutExerciseIndex}
             currentWeek={progress.currentWeek}
-            isCompleted={completedDays.includes(selectedDayId)}
-            notificationEnabled={notificationsEnabled}
-            onMarkCompleted={handleMarkCompleted}
-            onRestTimerComplete={handleRestTimerComplete}
-            onToggleExercise={(exerciseId) => handleToggleExercise(selectedDayId, exerciseId)}
-            onWeightChange={(exerciseId, value) =>
-              handleWeightChange(selectedDayId, exerciseId, value)
+            exerciseCount={selectedExercisePlans.length}
+            isLastExercise={workoutExerciseIndex === selectedExercisePlans.length - 1}
+            isWorkoutComplete={isWorkoutComplete}
+            lastExerciseDate={latestExerciseLog?.calendarDate ?? null}
+            lastExerciseRpe={latestExerciseLog?.rpe ?? null}
+            lastExerciseUnit={latestExerciseLog?.weightUnit ?? null}
+            lastExerciseWeight={
+              latestExerciseLog?.loggedWeight
+                ? `${latestExerciseLog.loggedWeight} ${latestExerciseLog.weightUnit}`
+                : null
             }
-            previousWeights={previousWeights}
-            weights={weights}
+            nextExerciseName={selectedExercisePlans[workoutExerciseIndex + 1]?.name ?? null}
+            notificationEnabled={notificationsEnabled}
+            onAdvance={() =>
+              setWorkoutExerciseIndex((currentValue) =>
+                Math.min(currentValue + 1, selectedExercisePlans.length)
+              )
+            }
+            onApplyRecommendation={handleApplyRecommendation}
+            onCompleteWorkout={() => handleMarkCompleted(selectedDayId)}
+            onGoPrevious={() =>
+              setWorkoutExerciseIndex((currentValue) => Math.max(currentValue - 1, 0))
+            }
+            onKeepRecommendation={handleKeepRecommendation}
+            onRestTimerComplete={handleRestTimerComplete}
+            onSetFeltArea={handleFeltAreaChange}
+            onSetRpe={handleRpeChange}
+            onSetWeightUnit={handleWeightUnitChange}
+            onSetWeightValue={handleWeightValueChange}
+            onToggleSet={handleToggleSet}
+            sparklinePoints={sparklinePoints}
+            state={currentExerciseState}
             workout={selectedWorkout}
           />
         );
@@ -460,51 +820,46 @@ function App() {
     }
   };
 
+  const showBottomNav = activeScreen !== "checkin" && activeScreen !== "workout";
+
   return (
-    <div className="relative min-h-screen overflow-hidden bg-sand-50 text-ink-200">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute left-1/2 top-[-3rem] h-80 w-80 -translate-x-1/2 rounded-full bg-blush-200/40 blur-3xl" />
-        <div className="absolute left-[-5rem] top-1/3 h-72 w-72 rounded-full bg-white/60 blur-3xl" />
-        <div className="absolute bottom-[-5rem] right-[-4rem] h-72 w-72 rounded-full bg-sand-200/60 blur-3xl" />
-      </div>
-
+    <div className="relative min-h-screen overflow-hidden bg-graphite-950 text-fog-100">
       <div className="relative mx-auto flex min-h-screen max-w-[430px] flex-col px-4 pb-32 pt-[calc(env(safe-area-inset-top)+18px)]">
-        <header className="sticky top-[calc(env(safe-area-inset-top)+10px)] z-20 mb-6">
-          <div className="frost-nav flex items-center justify-between px-4 py-3">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-ink-50">
-                Plan privado
-              </p>
-              <p className="mt-1 text-[1.05rem] font-semibold tracking-[-0.03em] text-ink-200">
-                Recompón
-              </p>
-            </div>
+        {activeScreen !== "home" && (
+          <header className="mb-6">
+            <div className="frost-nav flex items-center justify-between px-4 py-3">
+              <div>
+                <p className="eyebrow">Coach privado</p>
+                <p className="mt-1 text-[1.05rem] font-semibold tracking-[-0.03em] text-fog-100">
+                  Recompón
+                </p>
+              </div>
 
-            <div className="flex items-center gap-2">
-              <span className="top-pill">Semana {progress.currentWeek}</span>
-              <span className="top-pill">{completionPercentage}%</span>
+              <div className="flex items-center gap-2">
+                <span className="top-pill">Semana {progress.currentWeek}</span>
+                <span className="top-pill">{completionPercentage}%</span>
+              </div>
             </div>
-          </div>
-        </header>
+          </header>
+        )}
 
-        <main key={screenKey} className="screen-enter flex-1">
-          {renderScreen()}
-        </main>
+        <main className="screen-enter flex-1">{renderScreen()}</main>
       </div>
 
-      {activeScreen !== "workout" && (
-        <FloatingTodayButton todayDayId={todayDayId} onOpenToday={openToday} />
-      )}
+      {activeScreen !== "home" &&
+        activeScreen !== "checkin" &&
+        activeScreen !== "workout" && (
+          <FloatingTodayButton todayDayId={todayDayId} onOpenToday={openToday} />
+        )}
 
-      <BottomNav
-        activeScreen={activeScreen}
-        onChange={(screen) => setActiveScreen(screen)}
-      />
+      {showBottomNav && (
+        <BottomNav activeScreen={activeScreen} onChange={(screen) => setActiveScreen(screen)} />
+      )}
 
       <ConfirmationSheet
         open={isResetSheetOpen}
         title="Reiniciar progreso"
-        description="Se limpiará el avance guardado de Recompón y la semana actual volverá a 1."
+        description="Se limpiará el avance guardado, los check-ins y las series registradas. La semana actual volverá a 1."
         confirmLabel="Reiniciar"
         cancelLabel="Cancelar"
         onConfirm={handleConfirmReset}

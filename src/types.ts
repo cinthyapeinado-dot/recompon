@@ -11,6 +11,38 @@ export type DayId =
 
 export type WorkoutKind = "strength" | "active" | "rest";
 
+export type WeightUnit = "kg" | "lb";
+
+export type SleepQuality = "excelente" | "bien" | "regular" | "mal";
+
+export type EnergyLevel = "alta" | "media" | "baja";
+
+export type TimeAvailability = "completo" | "45_min" | "30_min";
+
+export type DiscomfortArea = "rodilla" | "espalda" | "hombro" | "otra";
+
+export type FeltArea = "gluteo" | "femoral" | "cuadriceps" | "espalda" | "otro";
+
+export type ExerciseMotionKind =
+  | "thrust"
+  | "hinge"
+  | "press"
+  | "pull"
+  | "abduction"
+  | "extension"
+  | "curl"
+  | "calf"
+  | "plank"
+  | "walk"
+  | "rest";
+
+export type ExerciseMedia = {
+  type: "placeholder" | "lottie" | "mp4" | "gif";
+  src?: string;
+  poster?: string;
+  alt: string;
+};
+
 export type Exercise = {
   id: string;
   name: string;
@@ -18,6 +50,15 @@ export type Exercise = {
   reps: string;
   rest: string;
   priority: Priority;
+  muscleGroup: string;
+  motion: ExerciseMotionKind;
+  jointLoad: "low" | "medium" | "high";
+  defaultUnit: WeightUnit;
+  starterWeight: {
+    value: number;
+    unit: WeightUnit;
+  };
+  media: ExerciseMedia;
 };
 
 export type WorkoutDay = {
@@ -31,6 +72,8 @@ export type WorkoutDay = {
   details?: string;
   tip: string;
   microcopy: string;
+  estimatedDurationMinutes: number;
+  expectedEnergy: "suave" | "media" | "alta";
   exercises: Exercise[];
 };
 
@@ -43,7 +86,57 @@ export type ProgressionPhase = {
   emphasis: string;
 };
 
+export type AthleteProfile = {
+  name: string;
+  level: string;
+  weeklyTrainingDays: number;
+  companionDiscipline: string;
+  strengthProfile: string;
+  historyNotes: string[];
+  sensitivities: string[];
+  trainingPreferences: string[];
+  mixedUnits: boolean;
+};
+
 export type ExerciseWeights = Record<string, string>;
+
+export type DailyCheckIn = {
+  calendarDate: string;
+  createdAt: string;
+  dayId: DayId;
+  energy: EnergyLevel;
+  discomforts: DiscomfortArea[];
+  sleep: SleepQuality;
+  timeAvailable: TimeAvailability;
+  week: number;
+};
+
+export type ExerciseProgressState = {
+  completedSets: boolean[];
+  feltArea: FeltArea | null;
+  recommendationDecision: "applied" | "kept" | null;
+  rpe: number | null;
+  updatedAt: string | null;
+  weightUnit: WeightUnit;
+  weightValue: string;
+};
+
+export type ExerciseLog = {
+  completedSets: number;
+  completedSetsMask: boolean[];
+  exerciseId: string;
+  exerciseName: string;
+  feltArea: FeltArea | null;
+  loggedWeight: string;
+  muscleGroup: string;
+  recommendationDecision: "applied" | "kept" | null;
+  restSeconds: number;
+  rpe: number | null;
+  targetSets: number;
+  weightKg: number | null;
+  weightLb: number | null;
+  weightUnit: WeightUnit;
+};
 
 export type WorkoutHistoryEntry = {
   id: string;
@@ -56,6 +149,9 @@ export type WorkoutHistoryEntry = {
   kind: WorkoutKind;
   checkedExerciseIds: string[];
   weightsByExercise: ExerciseWeights;
+  checkIn: DailyCheckIn | null;
+  exerciseLogs: ExerciseLog[];
+  totalVolumeKg: number | null;
 };
 
 export type NotificationSettings = {
@@ -64,7 +160,59 @@ export type NotificationSettings = {
   lastTrainingReminderDate: null | string;
 };
 
-export type AppScreen = "home" | "agenda" | "workout" | "progression" | "settings";
+export type SessionStrategy = "pending" | "applied" | "kept";
+
+export type RecommendationAction =
+  | "increase_weight"
+  | "maintain_weight"
+  | "decrease_weight"
+  | "reduce_volume"
+  | "extend_rest"
+  | "protect_joint"
+  | "shorten_session";
+
+export type ExerciseRecommendation = {
+  action: RecommendationAction;
+  confidence: number;
+  detail: string;
+  exerciseId: string;
+  reasons: string[];
+  suggestedUnit: WeightUnit;
+  suggestedValue: number | null;
+  title: string;
+};
+
+export type WorkoutAdjustment = {
+  action: RecommendationAction;
+  detail: string;
+  exerciseId?: string;
+  reason: string;
+  title: string;
+};
+
+export type PlannedExercise = Exercise & {
+  isOptional: boolean;
+  plannedRestSeconds: number;
+  plannedSets: number;
+  recommendation: ExerciseRecommendation;
+};
+
+export type WorkoutCoachPlan = {
+  adjustments: WorkoutAdjustment[];
+  confidence: number;
+  estimatedDurationMinutes: number;
+  exercisePlans: PlannedExercise[];
+  reasons: string[];
+  summary: string;
+};
+
+export type AppScreen =
+  | "home"
+  | "checkin"
+  | "agenda"
+  | "workout"
+  | "progression"
+  | "settings";
 
 export type ProgressState = {
   currentWeek: number;
@@ -73,4 +221,10 @@ export type ProgressState = {
   weightsByWeek: Record<string, Partial<Record<DayId, ExerciseWeights>>>;
   history: WorkoutHistoryEntry[];
   notificationSettings: NotificationSettings;
+  checkInsByWeek: Record<string, Partial<Record<DayId, DailyCheckIn>>>;
+  exerciseStatesByWeek: Record<
+    string,
+    Partial<Record<DayId, Record<string, ExerciseProgressState>>>
+  >;
+  sessionStrategyByWeek: Record<string, Partial<Record<DayId, SessionStrategy>>>;
 };

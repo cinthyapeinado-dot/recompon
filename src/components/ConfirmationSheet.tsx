@@ -22,7 +22,7 @@ export const ConfirmationSheet = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/18 px-4 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-6 backdrop-blur-md">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/48 px-4 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-6 backdrop-blur-md">
       <button
         type="button"
         aria-label="Cerrar confirmación"
@@ -34,16 +34,12 @@ export const ConfirmationSheet = ({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="sheet-surface animate-[sheet-up_320ms_cubic-bezier(0.22,1,0.36,1)_both] w-full max-w-[430px] p-5"
+        className="sheet-surface animate-[sheet-up_260ms_cubic-bezier(0.22,1,0.36,1)_both] w-full max-w-[430px] p-5"
       >
-        <div className="mx-auto mb-4 h-1.5 w-14 rounded-full bg-white/70" />
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-50">
-          Confirmación
-        </p>
-        <h2 className="mt-3 text-2xl font-semibold tracking-[-0.04em] text-ink-200">
-          {title}
-        </h2>
-        <p className="mt-3 text-[0.95rem] leading-7 text-ink-50">{description}</p>
+        <div className="mx-auto mb-4 h-1.5 w-14 rounded-full bg-white/10" />
+        <p className="eyebrow">Confirmación</p>
+        <h2 className="mt-3 text-2xl font-semibold tracking-[-0.04em] text-fog-100">{title}</h2>
+        <p className="mt-3 text-[0.95rem] leading-7 text-fog-300">{description}</p>
 
         <div className="mt-6 grid grid-cols-2 gap-3">
           <button type="button" onClick={onCancel} className="secondary-button">

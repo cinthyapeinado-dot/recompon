@@ -1,5 +1,6 @@
+import { athleteProfile } from "../data/athleteProfile";
 import { Card } from "../components/Card";
-import { BellIcon, ResetIcon, SparkIcon } from "../components/Icons";
+import { BellIcon, ResetIcon } from "../components/Icons";
 import { SectionIntro } from "../components/SectionIntro";
 import { TOTAL_PROGRAM_WEEKS } from "../data/workouts";
 import type { NotificationSettings } from "../types";
@@ -18,10 +19,10 @@ type SettingsScreenProps = {
 };
 
 const notificationCopy: Record<NotificationPermissionState, string> = {
-  default: "Aún no has dado permiso. Puedes activarlo para avisos de descanso y recordatorios.",
-  denied: "El permiso fue rechazado. Puedes cambiarlo más tarde desde los ajustes del navegador.",
-  granted: "Las notificaciones locales están listas para avisarte desde la app.",
-  unsupported: "Este dispositivo o navegador no expone la API de notificaciones locales."
+  default: "Aún no hay permiso. Puedes activarlo para avisos de descanso y recordatorios.",
+  denied: "El permiso fue rechazado. Puedes cambiarlo después desde los ajustes del navegador.",
+  granted: "Las notificaciones locales ya pueden acompañar el entrenamiento.",
+  unsupported: "Este dispositivo o navegador no expone notificaciones locales completas."
 };
 
 export const SettingsScreen = ({
@@ -37,31 +38,27 @@ export const SettingsScreen = ({
   <div className="space-y-5">
     <SectionIntro
       eyebrow="Ajustes"
-      title="Personaliza tu bloque"
-      description="Controla la semana actual, las notificaciones locales y el reinicio de progreso desde una sola vista."
-      side={<span className="top-pill">Semana {currentWeek}</span>}
+      title="Contexto y control"
+      description="Aquí mantienes semana, avisos y el contexto base de la usuaria sin tocar la arquitectura del producto."
+      side={<span className="badge-soft">Semana {currentWeek}</span>}
     />
 
-    <Card className="p-0">
-      <div className="px-5 pt-5">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-50">
-          Semana actual
-        </p>
-        <h2 className="mt-2 text-[1.75rem] font-semibold tracking-[-0.04em] text-ink-200">
-          Ajusta tu punto del programa
-        </h2>
+    <Card className="space-y-5">
+      <div>
+        <p className="eyebrow">Semana actual</p>
+        <h2 className="mt-2 text-[1.65rem] font-semibold text-fog-100">Punto del programa</h2>
       </div>
 
-      <div className="flex items-center gap-3 px-5 pt-5">
+      <div className="flex items-center gap-3">
         <button
           type="button"
           onClick={() => onChangeWeek(currentWeek - 1)}
-          className="flex h-12 w-12 items-center justify-center rounded-full border border-white/70 bg-white/78 text-xl font-semibold text-ink-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.86)] transition hover:-translate-y-0.5"
+          className="secondary-button h-12 w-12 shrink-0 rounded-full p-0"
         >
           -
         </button>
 
-        <label className="min-w-0 flex-1">
+        <label className="field-shell min-w-0 flex-1">
           <span className="sr-only">Cambiar semana actual</span>
           <input
             type="number"
@@ -70,86 +67,98 @@ export const SettingsScreen = ({
             max={TOTAL_PROGRAM_WEEKS}
             value={currentWeek}
             onChange={(event) => onChangeWeek(Number(event.target.value))}
-            className="w-full rounded-[24px] border border-white/70 bg-white/72 px-4 py-3 text-center text-[1.9rem] font-semibold tracking-[-0.04em] text-ink-200 outline-none shadow-[inset_0_1px_0_rgba(255,255,255,0.86)] transition focus:border-blush-300"
+            className="w-full bg-transparent text-center text-[1.9rem] font-semibold tracking-[-0.04em] text-fog-100 outline-none"
           />
         </label>
 
         <button
           type="button"
           onClick={() => onChangeWeek(currentWeek + 1)}
-          className="flex h-12 w-12 items-center justify-center rounded-full border border-white/70 bg-white/78 text-xl font-semibold text-ink-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.86)] transition hover:-translate-y-0.5"
+          className="secondary-button h-12 w-12 shrink-0 rounded-full p-0"
         >
           +
         </button>
       </div>
 
-      <div className="px-5 pb-5 pt-5">
-        <input
-          type="range"
-          min={1}
-          max={TOTAL_PROGRAM_WEEKS}
-          value={currentWeek}
-          onChange={(event) => onChangeWeek(Number(event.target.value))}
-          className="h-2 w-full cursor-pointer appearance-none rounded-full bg-white/74 accent-[#b9788f]"
-        />
-        <p className="mt-3 text-sm leading-6 text-ink-50">
-          Déjala entre 1 y {TOTAL_PROGRAM_WEEKS}, según el bloque real en el que vas.
-        </p>
+      <input
+        type="range"
+        min={1}
+        max={TOTAL_PROGRAM_WEEKS}
+        value={currentWeek}
+        onChange={(event) => onChangeWeek(Number(event.target.value))}
+        className="h-2 w-full cursor-pointer appearance-none rounded-full bg-white/5 accent-accent-400"
+      />
+    </Card>
+
+    <Card className="space-y-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="eyebrow">Perfil base</p>
+          <h2 className="mt-2 text-[1.45rem] font-semibold text-fog-100">
+            Restricciones que siempre se respetan
+          </h2>
+        </div>
+        <span className="badge-soft">{athleteProfile.level}</span>
+      </div>
+
+      <div className="space-y-3">
+        {athleteProfile.trainingPreferences
+          .concat(athleteProfile.sensitivities)
+          .concat(athleteProfile.historyNotes)
+          .map((item) => (
+            <div key={item} className="card-subtle text-sm leading-6 text-fog-300">
+              {item}
+            </div>
+          ))}
       </div>
     </Card>
 
     <Card className="space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-50">
-            Notificaciones locales
-          </p>
-          <h2 className="mt-2 text-[1.45rem] font-semibold tracking-[-0.04em] text-ink-200">
+          <p className="eyebrow">Notificaciones</p>
+          <h2 className="mt-2 text-[1.45rem] font-semibold text-fog-100">
             Avisos de descanso y recordatorios
           </h2>
         </div>
-        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-blush-100 text-blush-500">
+        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-accent-500/12 text-accent-300">
           <BellIcon className="h-5 w-5" />
         </span>
       </div>
 
-      <p className="text-sm leading-6 text-ink-50">{notificationCopy[notificationPermission]}</p>
+      <p className="text-sm leading-6 text-fog-300">{notificationCopy[notificationPermission]}</p>
 
-      <div className="grid gap-3">
-        <div className="rounded-[24px] bg-white/74 px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.86)]">
+      <div className="space-y-3">
+        <div className="card-subtle">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold text-ink-200">Aviso al terminar descanso</p>
-              <p className="mt-1 text-sm leading-6 text-ink-50">
-                Notifica cuando el cronómetro llegue a cero.
+              <p className="text-sm font-semibold text-fog-100">Aviso al terminar descanso</p>
+              <p className="mt-1 text-sm leading-6 text-fog-300">
+                Dispara un aviso cuando el cronómetro llegue a cero.
               </p>
             </div>
             <button
               type="button"
               onClick={() => onToggleNotificationSetting("restTimer")}
-              className={`rounded-full px-4 py-2 text-sm font-semibold ${
-                notificationSettings.restTimer ? "bg-ink-200 text-white" : "bg-sand-50 text-ink-50"
-              }`}
+              className={notificationSettings.restTimer ? "badge-strong" : "badge-soft"}
             >
               {notificationSettings.restTimer ? "On" : "Off"}
             </button>
           </div>
         </div>
 
-        <div className="rounded-[24px] bg-white/74 px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.86)]">
+        <div className="card-subtle">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold text-ink-200">Recordatorio del día</p>
-              <p className="mt-1 text-sm leading-6 text-ink-50">
-                Muestra un aviso cuando abras la app y todavía no hayas entrenado hoy.
+              <p className="text-sm font-semibold text-fog-100">Recordatorio del día</p>
+              <p className="mt-1 text-sm leading-6 text-fog-300">
+                Si hoy no has entrenado, la app te lo recordará cuando entres.
               </p>
             </div>
             <button
               type="button"
               onClick={() => onToggleNotificationSetting("trainingReminder")}
-              className={`rounded-full px-4 py-2 text-sm font-semibold ${
-                notificationSettings.trainingReminder ? "bg-ink-200 text-white" : "bg-sand-50 text-ink-50"
-              }`}
+              className={notificationSettings.trainingReminder ? "badge-strong" : "badge-soft"}
             >
               {notificationSettings.trainingReminder ? "On" : "Off"}
             </button>
@@ -177,27 +186,20 @@ export const SettingsScreen = ({
       </div>
     </Card>
 
-    <Card tone="dark" className="px-5 py-5">
+    <Card tone="dark" className="space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60">
-            Reiniciar progreso
-          </p>
-          <p className="mt-3 text-base leading-7 text-white/92">
-            Borra historial, checklists, pesos registrados y vuelve la semana actual al inicio.
+          <p className="eyebrow text-white/60">Reiniciar progreso</p>
+          <p className="mt-3 text-sm leading-7 text-white/78">
+            Borra historial, series, pesos y check-ins guardados. Conservamos únicamente las preferencias de avisos.
           </p>
         </div>
-        <span className="rounded-full bg-white/10 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.14)]">
+        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white/8 text-white/80">
           <ResetIcon className="h-5 w-5" />
         </span>
       </div>
 
-      <div className="mt-5 flex items-center gap-2 rounded-[24px] bg-white/8 px-4 py-3 text-sm text-white/72">
-        <SparkIcon className="h-4 w-4" />
-        Las preferencias de notificación pueden conservarse aunque limpies el avance.
-      </div>
-
-      <button type="button" onClick={onRequestReset} className="secondary-button mt-5 w-full">
+      <button type="button" onClick={onRequestReset} className="secondary-button w-full">
         Reiniciar progreso
       </button>
     </Card>

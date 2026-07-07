@@ -1,7 +1,6 @@
 import { Card } from "../components/Card";
 import { HistoryList } from "../components/HistoryList";
 import { SectionIntro } from "../components/SectionIntro";
-import { TrendIcon, WeightIcon } from "../components/Icons";
 import { StatTile } from "../components/StatTile";
 import { getProgressionPhase, progressionPhases } from "../data/workouts";
 import type { DayId, WorkoutHistoryEntry } from "../types";
@@ -11,7 +10,8 @@ import {
   getMonthlySessionCount,
   getPersonalBests,
   getTotalLoggedWeights,
-  getWeeksWithActivity
+  getWeeksWithActivity,
+  getWeeklyVolumeKg
 } from "../utils/training";
 
 type ProgressionScreenProps = {
@@ -33,32 +33,18 @@ export const ProgressionScreen = ({
   const totalLoggedWeights = getTotalLoggedWeights(history);
   const personalBests = getPersonalBests(history).slice(0, 4);
   const currentMonthSessions = getMonthlySessionCount(history, new Date());
+  const weeklyVolume = getWeeklyVolumeKg(history, currentWeek);
 
   return (
     <div className="space-y-5">
       <SectionIntro
-        eyebrow={`Semana actual ${currentWeek}`}
-        title="Estadísticas"
-        description="Aquí se junta lo que has hecho: sesiones, historial, pesos usados y el punto actual del programa."
-        side={<span className="top-pill">{history.length} sesiones</span>}
+        eyebrow={`Semana ${currentWeek}`}
+        title="Progreso real"
+        description="Aquí se junta adherencia, volumen, mejores marcas y el bloque actual del programa."
+        side={<span className="badge-soft">{history.length} sesiones</span>}
       />
 
       <Card className="space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-50">
-              Resumen de avance
-            </p>
-            <h2 className="mt-2 text-[1.7rem] font-semibold tracking-[-0.04em] text-ink-200">
-              Métricas del programa
-            </h2>
-          </div>
-          <span className="ios-chip text-ink-50">
-            <TrendIcon className="h-3.5 w-3.5" />
-            Actual
-          </span>
-        </div>
-
         <div className="grid grid-cols-2 gap-3">
           <StatTile
             label="Sesiones"
@@ -79,147 +65,115 @@ export const ProgressionScreen = ({
           <StatTile
             label="Pesos guardados"
             value={String(totalLoggedWeights)}
-            detail="Registros de carga en historial"
+            detail="Registros de carga"
             tone="dark"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <StatTile
+            label="Mes actual"
+            value={String(currentMonthSessions)}
+            detail="Sesiones registradas"
+            tone="tint"
+          />
+          <StatTile
+            label="Volumen"
+            value={weeklyVolume > 0 ? `${Math.round(weeklyVolume)} kg` : "Sin dato"}
+            detail="Semana actual"
           />
         </div>
       </Card>
 
       <Card className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          <StatTile
-            label="Mes actual"
-            value={String(currentMonthSessions)}
-            detail="Sesiones registradas este mes"
-            tone="tint"
-          />
-          <StatTile
-            label="Fase"
-            value={activePhase.title}
-            detail={activePhase.weeks}
-            tone="dark"
-          />
+        <div>
+          <p className="eyebrow">Fase actual</p>
+          <h2 className="mt-2 text-[1.65rem] font-semibold text-fog-100">{activePhase.title}</h2>
+          <p className="mt-3 text-sm leading-6 text-fog-300">{activePhase.description}</p>
+        </div>
+
+        <div className="card-subtle">
+          <p className="text-sm font-semibold text-fog-100">{activePhase.emphasis}</p>
+        </div>
+
+        <div className="space-y-3">
+          {progressionPhases.map((phase) => {
+            const isActive = phase.title === activePhase.title;
+
+            return (
+              <div
+                key={phase.title}
+                className={cn(
+                  "rounded-[24px] border px-4 py-4",
+                  isActive
+                    ? "border-accent-400/18 bg-accent-500/10"
+                    : "border-white/6 bg-white/[0.02]"
+                )}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="eyebrow">{phase.weeks}</p>
+                    <h3 className="mt-2 text-[1.08rem] font-semibold text-fog-100">
+                      {phase.title}
+                    </h3>
+                  </div>
+                  {isActive && <span className="badge-strong">En curso</span>}
+                </div>
+                <p className="mt-3 text-sm leading-6 text-fog-300">{phase.emphasis}</p>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      <Card className="space-y-4">
+        <div>
+          <p className="eyebrow">Mejores pesos</p>
+          <h2 className="mt-2 text-[1.45rem] font-semibold text-fog-100">
+            Referencias más sólidas
+          </h2>
         </div>
 
         {personalBests.length > 0 ? (
-          <div className="rounded-[28px] border border-white/70 bg-white/64 px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)]">
-            <div className="flex items-center gap-2">
-              <WeightIcon className="h-4 w-4 text-ink-50" />
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-50">
-                Mejores pesos registrados
-              </p>
-            </div>
-
-            <div className="mt-4 space-y-3">
-              {personalBests.map((personalBest) => (
-                <div
-                  key={personalBest.exerciseId}
-                  className="flex items-center justify-between rounded-[22px] bg-sand-50 px-3 py-3"
-                >
+          <div className="space-y-3">
+            {personalBests.map((personalBest) => (
+              <div
+                key={personalBest.exerciseId}
+                className="rounded-[22px] border border-white/6 bg-white/[0.02] px-4 py-4"
+              >
+                <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-ink-200">
+                    <p className="text-sm font-semibold text-fog-100">
                       {personalBest.exerciseName}
                     </p>
-                    <p className="mt-1 text-xs text-ink-50">{personalBest.date}</p>
+                    <p className="mt-1 text-sm text-fog-300">{personalBest.date}</p>
                   </div>
-                  <span className="rounded-full bg-ink-200 px-3 py-1 text-sm font-semibold text-white">
-                    {personalBest.displayWeight}
-                  </span>
+                  <span className="badge-strong">{personalBest.displayWeight}</span>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         ) : (
-          <div className="rounded-[28px] border border-dashed border-white/70 bg-white/52 px-4 py-5 text-center text-sm leading-6 text-ink-50">
-            Cuando empieces a registrar pesos, aquí aparecerán tus mejores marcas.
+          <div className="card-subtle text-sm leading-6 text-fog-300">
+            Cuando empieces a registrar pesos con más constancia, aquí aparecerán tus referencias.
           </div>
         )}
       </Card>
 
       <Card className="space-y-4">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-50">
-            Historial
-          </p>
-          <h2 className="mt-2 text-[1.45rem] font-semibold tracking-[-0.04em] text-ink-200">
-            Últimas sesiones completadas
+          <p className="eyebrow">Historial reciente</p>
+          <h2 className="mt-2 text-[1.45rem] font-semibold text-fog-100">
+            Sesiones más recientes
           </h2>
         </div>
 
         <HistoryList
           title="Historial"
           entries={history.slice(0, 4)}
-          emptyCopy="Todavía no hay sesiones cerradas. En cuanto marques días como completos, aparecerán aquí."
+          emptyCopy="Todavía no hay sesiones cerradas. En cuanto completes un bloque, aparecerá aquí."
           onOpenEntry={onOpenHistoryEntry}
         />
-      </Card>
-
-      <Card className="p-0">
-        <div className="px-5 pt-5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-50">
-            Progresión del plan
-          </p>
-          <h2 className="mt-2 text-[1.8rem] font-semibold tracking-[-0.04em] text-ink-200">
-            {activePhase.title}
-          </h2>
-          <p className="mt-2 text-[0.95rem] leading-7 text-ink-50">{activePhase.emphasis}</p>
-        </div>
-
-        <div className="soft-separator mx-5 mt-5" />
-
-        <div className="space-y-1 px-4 py-4">
-          {progressionPhases.map((phase, index) => {
-            const isActive = phase.title === activePhase.title;
-            const isLast = index === progressionPhases.length - 1;
-
-            return (
-              <div key={phase.title} className="relative pl-10 pr-1">
-                {!isLast && (
-                  <span className="absolute left-[15px] top-10 h-[calc(100%-12px)] w-px bg-[linear-gradient(180deg,rgba(185,120,143,0.32),rgba(255,255,255,0))]" />
-                )}
-
-                <span
-                  className={cn(
-                    "absolute left-0 top-4 h-8 w-8 rounded-full border",
-                    isActive
-                      ? "border-blush-300 bg-blush-300 shadow-[0_14px_26px_rgba(185,120,143,0.22)]"
-                      : "border-white/70 bg-white/75"
-                  )}
-                />
-
-                <div
-                  className={cn(
-                    "mb-3 rounded-[28px] border px-4 py-4",
-                    isActive
-                      ? "border-blush-200 bg-[linear-gradient(180deg,rgba(252,246,247,0.96),rgba(245,231,236,0.88))] shadow-[0_18px_34px_rgba(196,141,160,0.12)]"
-                      : "border-white/70 bg-white/64"
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-50">
-                        {phase.weeks}
-                      </p>
-                      <h2 className="mt-2 text-[1.2rem] font-semibold tracking-[-0.03em] text-ink-200">
-                        {phase.title}
-                      </h2>
-                    </div>
-                    {isActive && (
-                      <span className="rounded-full bg-ink-200 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white">
-                        En curso
-                      </span>
-                    )}
-                  </div>
-
-                  <p className="mt-3 text-sm leading-6 text-ink-50">{phase.description}</p>
-                  <div className="mt-4 rounded-[22px] bg-white/76 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.86)]">
-                    <p className="text-sm font-semibold text-ink-200">{phase.emphasis}</p>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
       </Card>
     </div>
   );

@@ -4,7 +4,7 @@ import { CalendarIcon, ChartIcon, HomeIcon, SettingsIcon } from "./Icons";
 
 type BottomNavProps = {
   activeScreen: AppScreen;
-  onChange: (screen: Exclude<AppScreen, "workout">) => void;
+  onChange: (screen: Exclude<AppScreen, "checkin" | "workout">) => void;
 };
 
 const navItems = [
@@ -15,7 +15,8 @@ const navItems = [
 ] as const;
 
 export const BottomNav = ({ activeScreen, onChange }: BottomNavProps) => {
-  const resolvedScreen = activeScreen === "workout" ? "agenda" : activeScreen;
+  const resolvedScreen =
+    activeScreen === "workout" || activeScreen === "checkin" ? "home" : activeScreen;
 
   return (
     <nav
@@ -35,8 +36,8 @@ export const BottomNav = ({ activeScreen, onChange }: BottomNavProps) => {
                 aria-current={isActive ? "page" : undefined}
                 aria-label={`Ir a ${item.label}`}
                 className={cn(
-                  "flex w-full flex-col items-center gap-1 rounded-[22px] px-3 py-2.5 text-[10px] font-semibold tracking-[0.02em] transition duration-300",
-                  isActive ? "nav-active text-ink-200" : "text-ink-50 hover:text-ink-200"
+                  "flex w-full flex-col items-center gap-1 rounded-[18px] px-3 py-2.5 text-[10px] font-semibold tracking-[0.02em] transition duration-300",
+                  isActive ? "nav-active text-fog-100" : "text-fog-400 hover:text-fog-100"
                 )}
               >
                 <Icon className="h-5 w-5" />

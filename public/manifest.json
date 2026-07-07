@@ -2,14 +2,14 @@
   "id": "/",
   "name": "Recompón",
   "short_name": "Recompón",
-  "description": "Programa de entrenamiento móvil, práctico y elegante para el gimnasio.",
+  "description": "Coach de entrenamiento premium para celular con seguimiento inteligente, pesos, descanso y progreso.",
   "lang": "es-MX",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#f9f4ef",
-  "theme_color": "#f2d7dc",
+  "background_color": "#05070b",
+  "theme_color": "#05070b",
   "categories": ["health", "fitness", "lifestyle"],
   "icons": [
     {
@@ -29,13 +29,13 @@
     {
       "name": "Entrenar hoy",
       "short_name": "Hoy",
-      "description": "Abrir la rutina del día",
+      "description": "Abrir la sesión guiada del día",
       "url": "/"
     },
     {
-      "name": "Ver estadísticas",
+      "name": "Ver progreso",
       "short_name": "Progreso",
-      "description": "Revisar historial y progreso",
+      "description": "Revisar historial y estadísticas",
       "url": "/"
     }
   ]

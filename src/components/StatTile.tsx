@@ -26,23 +26,11 @@ export const StatTile = ({
         className
       )}
     >
-      <p
-        className={cn(
-          "text-[11px] font-semibold uppercase tracking-[0.18em]",
-          isDark ? "text-white/60" : "text-ink-50"
-        )}
-      >
-        {label}
-      </p>
-      <p
-        className={cn(
-          "mt-2 text-[1.35rem] font-semibold tracking-[-0.04em]",
-          isDark ? "text-white" : "text-ink-200"
-        )}
-      >
+      <p className={cn("eyebrow", isDark && "text-white/60")}>{label}</p>
+      <p className={cn("mt-2 text-[1.35rem] font-semibold tracking-[-0.04em]", isDark ? "text-white" : "text-fog-100")}>
         {value}
       </p>
-      <p className={cn("mt-2 text-sm leading-6", isDark ? "text-white/72" : "text-ink-50")}>
+      <p className={cn("mt-2 text-sm leading-6", isDark ? "text-white/72" : "text-fog-300")}>
         {detail}
       </p>
     </div>

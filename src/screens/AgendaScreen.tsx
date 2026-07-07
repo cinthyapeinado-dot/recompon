@@ -2,8 +2,6 @@ import { useState } from "react";
 import { CalendarMonth } from "../components/CalendarMonth";
 import { Card } from "../components/Card";
 import { HistoryList } from "../components/HistoryList";
-import { ArrowRightIcon, CheckIcon } from "../components/Icons";
-import { ProgressBar } from "../components/ProgressBar";
 import { SectionIntro } from "../components/SectionIntro";
 import type { DayId, WorkoutDay, WorkoutHistoryEntry } from "../types";
 import { cn } from "../utils/cn";
@@ -13,7 +11,12 @@ import {
   parseCalendarDate,
   shiftMonth
 } from "../utils/date";
-import { getMonthlySessionCount, groupHistoryByDate } from "../utils/training";
+import {
+  getCurrentStreak,
+  getMonthlySessionCount,
+  getWeeklyVolumeKg,
+  groupHistoryByDate
+} from "../utils/training";
 
 type AgendaScreenProps = {
   completedDays: DayId[];
@@ -34,7 +37,6 @@ export const AgendaScreen = ({
   todayDayId,
   workouts
 }: AgendaScreenProps) => {
-  const completionPercentage = Math.round((completedDays.length / workouts.length) * 100);
   const historyByDate = groupHistoryByDate(history);
   const todayDateKey = formatCalendarDate();
   const [monthDate, setMonthDate] = useState(() => parseCalendarDate(todayDateKey));
@@ -45,14 +47,16 @@ export const AgendaScreen = ({
   );
   const selectedEntries = historyByDate[selectedDateKey] ?? [];
   const monthlySessions = getMonthlySessionCount(history, monthDate);
+  const streak = getCurrentStreak(history);
+  const weeklyVolume = getWeeklyVolumeKg(history, currentWeek);
 
   return (
     <div className="space-y-5">
       <SectionIntro
         eyebrow={`Semana ${currentWeek}`}
-        title="Agenda y calendario"
-        description="Aquí puedes ver tu bloque semanal y también el historial real por fecha en formato calendario."
-        side={<span className="top-pill">{completionPercentage}%</span>}
+        title="Calendario y carga"
+        description="Aquí ves qué días ya quedaron hechos, cuánto volumen moviste y cómo viene la constancia."
+        side={<span className="badge-soft">{completedDays.length}/7</span>}
       />
 
       <Card className="space-y-5">
@@ -66,31 +70,33 @@ export const AgendaScreen = ({
           todayDateKey={todayDateKey}
         />
 
-        <div className="soft-separator" />
-
         <div className="grid grid-cols-2 gap-3">
           <div className="metric-tile px-4 py-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-50">
-              Mes actual
-            </p>
-            <p className="mt-2 text-[1.35rem] font-semibold tracking-[-0.04em] text-ink-200">
-              {monthlySessions} sesiones
-            </p>
-            <p className="mt-2 text-sm leading-6 text-ink-50">
-              Entrenamientos registrados este mes.
-            </p>
+            <p className="eyebrow">Racha</p>
+            <p className="mt-2 text-[1.35rem] font-semibold text-fog-100">{streak} días</p>
+            <p className="mt-2 text-sm leading-6 text-fog-300">Días seguidos con sesiones guardadas.</p>
           </div>
           <div className="metric-tile metric-tile-tint px-4 py-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-50">
-              Día seleccionado
+            <p className="eyebrow">Volumen semanal</p>
+            <p className="mt-2 text-[1.35rem] font-semibold text-fog-100">
+              {weeklyVolume > 0 ? `${Math.round(weeklyVolume)} kg` : "Sin dato"}
             </p>
-            <p className="mt-2 text-[1.35rem] font-semibold tracking-[-0.04em] text-ink-200">
+            <p className="mt-2 text-sm leading-6 text-fog-300">Estimación basada en las series completadas.</p>
+          </div>
+          <div className="metric-tile px-4 py-4">
+            <p className="eyebrow">Mes actual</p>
+            <p className="mt-2 text-[1.35rem] font-semibold text-fog-100">{monthlySessions} sesiones</p>
+            <p className="mt-2 text-sm leading-6 text-fog-300">Entrenamientos registrados este mes.</p>
+          </div>
+          <div className="metric-tile px-4 py-4">
+            <p className="eyebrow">Día seleccionado</p>
+            <p className="mt-2 text-[1.35rem] font-semibold text-fog-100">
               {formatHistoryDate(selectedDateKey)}
             </p>
-            <p className="mt-2 text-sm leading-6 text-ink-50">
+            <p className="mt-2 text-sm leading-6 text-fog-300">
               {selectedEntries.length > 0
-                ? `${selectedEntries.length} registro(s) encontrados`
-                : "Sin sesiones guardadas"}
+                ? `${selectedEntries.length} sesión(es) en esa fecha.`
+                : "Aún no hay sesión guardada ese día."}
             </p>
           </div>
         </div>
@@ -103,92 +109,44 @@ export const AgendaScreen = ({
         />
       </Card>
 
-      <Card className="p-0">
-        <div className="px-5 pt-5">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-50">
-                Agenda semanal
-              </p>
-              <h2 className="mt-2 text-[1.7rem] font-semibold tracking-[-0.04em] text-ink-200">
-                {completedDays.length} de {workouts.length} días
-              </h2>
-            </div>
-            <span className="ios-chip text-ink-50">Bloque activo</span>
-          </div>
-          <ProgressBar className="mt-5" value={completedDays.length} max={workouts.length} />
-        </div>
+      <Card className="space-y-3 p-3">
+        {workouts.map((workout, index) => {
+          const isToday = workout.id === todayDayId;
+          const isCompleted = completedDays.includes(workout.id);
+          const detail =
+            workout.kind === "strength"
+              ? `${workout.exercises.length} ejercicios · ${workout.estimatedDurationMinutes} min`
+              : workout.details ?? workout.focus;
 
-        <div className="soft-separator mx-5 mt-5" />
-
-        <div className="space-y-2 px-3 py-3">
-          {workouts.map((workout, index) => {
-            const isToday = workout.id === todayDayId;
-            const isCompleted = completedDays.includes(workout.id);
-            const detail =
-              workout.kind === "strength"
-                ? `${workout.exercises.length} ejercicios · ${workout.warmup}`
-                : workout.details ?? workout.focus;
-
-            return (
-              <button
-                key={workout.id}
-                type="button"
-                onClick={() => onSelectDay(workout.id)}
-                className={cn(
-                  "flex w-full items-center gap-4 rounded-[28px] px-3 py-4 text-left transition duration-300",
-                  isToday
-                    ? "bg-[linear-gradient(180deg,rgba(252,246,247,0.94),rgba(245,229,234,0.86))] shadow-[0_20px_38px_rgba(196,141,160,0.12)]"
-                    : "bg-white/52 hover:bg-white/72",
-                  isCompleted && "ring-1 ring-blush-200/60"
-                )}
-              >
-                <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-[22px] border border-white/70 bg-white/72 text-ink-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)]">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-ink-50">
-                    {workout.shortLabel}
-                  </span>
-                  <span className="mt-0.5 text-lg font-semibold tracking-[-0.04em]">
-                    {index + 1}
-                  </span>
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="truncate text-[1.02rem] font-semibold tracking-[-0.03em] text-ink-200">
-                      {workout.title}
-                    </h2>
-                    {isToday && (
-                      <span className="rounded-full bg-ink-200 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white">
-                        Hoy
-                      </span>
-                    )}
-                    {isCompleted && (
-                      <span className="rounded-full bg-blush-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-blush-500">
-                        Hecho
-                      </span>
-                    )}
+          return (
+            <button
+              key={workout.id}
+              type="button"
+              onClick={() => onSelectDay(workout.id)}
+              className={cn(
+                "rounded-[24px] border px-4 py-4 text-left transition duration-300",
+                isToday
+                  ? "border-accent-400/20 bg-accent-500/10"
+                  : "border-white/6 bg-white/[0.02]",
+                isCompleted && "shadow-[inset_0_0_0_1px_rgba(69,228,183,0.15)]"
+              )}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="badge-soft">{workout.shortLabel}</span>
+                    {isToday && <span className="badge-strong">Hoy</span>}
+                    {isCompleted && <span className="badge-soft">Hecho</span>}
                   </div>
-                  <p className="mt-1 text-sm leading-6 text-ink-50">{detail}</p>
+                  <h2 className="mt-3 text-[1.08rem] font-semibold text-fog-100">
+                    {index + 1}. {workout.title}
+                  </h2>
+                  <p className="mt-2 text-sm leading-6 text-fog-300">{detail}</p>
                 </div>
-
-                <span
-                  className={cn(
-                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
-                    isCompleted
-                      ? "bg-blush-100 text-blush-500"
-                      : "bg-white/76 text-ink-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.88)]"
-                  )}
-                >
-                  {isCompleted ? (
-                    <CheckIcon className="h-4 w-4" />
-                  ) : (
-                    <ArrowRightIcon className="h-4 w-4" />
-                  )}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+              </div>
+            </button>
+          );
+        })}
       </Card>
     </div>
   );

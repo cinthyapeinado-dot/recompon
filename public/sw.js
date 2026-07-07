@@ -1,4 +1,4 @@
-const CACHE_NAME = "recompon-cache-v2";
+const CACHE_NAME = "recompon-cache-v3";
 const APP_SHELL = [
   "/",
   "/index.html",

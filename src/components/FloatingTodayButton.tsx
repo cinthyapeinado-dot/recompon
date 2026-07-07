@@ -18,7 +18,7 @@ export const FloatingTodayButton = ({
       aria-label={`Abrir rutina de hoy: ${workoutsById[todayDayId].title}`}
       className="floating-action pointer-events-auto ml-auto flex items-center gap-3 px-3 py-3 text-sm font-semibold text-white"
     >
-      <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white/12 shadow-[inset_0_1px_0_rgba(255,255,255,0.24)]">
+      <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
         <DumbbellIcon className="h-5 w-5" />
       </span>
       <span className="text-left leading-tight">

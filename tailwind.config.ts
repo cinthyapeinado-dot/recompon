@@ -6,28 +6,56 @@ export default {
     extend: {
       colors: {
         blush: {
-          50: "#fcf6f6",
-          100: "#f8ecee",
-          200: "#f2d7dc",
-          300: "#e9bac4",
-          400: "#db98aa",
-          500: "#c67d92"
+          100: "rgba(83, 213, 255, 0.12)",
+          200: "rgba(83, 213, 255, 0.18)",
+          300: "rgba(83, 213, 255, 0.26)",
+          400: "#35c8ff",
+          500: "#179cff"
         },
         sand: {
-          50: "#f9f4ef",
-          100: "#f2e7dc",
-          200: "#e7d6c5",
-          300: "#d7bca2"
+          50: "#11161d",
+          100: "#161c24",
+          200: "#202833",
+          300: "#2a3441"
         },
         ink: {
-          50: "#6e655f",
-          100: "#302b27",
-          200: "#1e1a17"
+          50: "#7b8798",
+          100: "#d7dfea",
+          200: "#f5f7fb"
+        },
+        graphite: {
+          950: "#05070b",
+          900: "#0b0f14",
+          850: "#11161d",
+          800: "#161c24",
+          700: "#202833",
+          600: "#2a3441"
+        },
+        fog: {
+          100: "#f5f7fb",
+          200: "#d7dfea",
+          300: "#a4afbe",
+          400: "#7b8798"
+        },
+        accent: {
+          300: "#65d7ff",
+          400: "#35c8ff",
+          500: "#179cff",
+          600: "#1172e6"
+        },
+        mint: {
+          300: "#71f1cd",
+          400: "#45e4b7",
+          500: "#21c98f"
+        },
+        danger: {
+          400: "#ff7d7d",
+          500: "#ff5f74"
         }
       },
       boxShadow: {
-        soft: "0 16px 40px rgba(28, 20, 16, 0.08)",
-        lift: "0 22px 50px rgba(214, 164, 174, 0.18)"
+        glow: "0 20px 40px rgba(23, 156, 255, 0.18)",
+        shell: "0 24px 60px rgba(0, 0, 0, 0.32)"
       },
       borderRadius: {
         "4xl": "2rem"
@@ -43,18 +71,30 @@ export default {
             transform: "translateY(0)"
           }
         },
-        float: {
+        pulseline: {
           "0%, 100%": {
-            transform: "translateY(0px)"
+            transform: "translateX(-10%)"
           },
           "50%": {
-            transform: "translateY(-6px)"
+            transform: "translateX(10%)"
+          }
+        },
+        orbit: {
+          "0%": {
+            transform: "translate3d(-18px, 10px, 0)"
+          },
+          "50%": {
+            transform: "translate3d(14px, -12px, 0)"
+          },
+          "100%": {
+            transform: "translate3d(-18px, 10px, 0)"
           }
         }
       },
       animation: {
-        "fade-up": "fade-up 500ms ease-out both",
-        float: "float 4s ease-in-out infinite"
+        "fade-up": "fade-up 260ms ease-out both",
+        pulseline: "pulseline 4s ease-in-out infinite",
+        orbit: "orbit 3.4s ease-in-out infinite"
       }
     }
   },

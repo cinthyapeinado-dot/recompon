@@ -27,10 +27,8 @@ export const CalendarMonth = ({
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-50">
-            Calendario
-          </p>
-          <h2 className="mt-2 text-[1.55rem] font-semibold capitalize tracking-[-0.04em] text-ink-200">
+          <p className="eyebrow">Calendario</p>
+          <h2 className="mt-2 text-[1.55rem] font-semibold capitalize tracking-[-0.04em] text-fog-100">
             {getMonthLabel(monthDate)}
           </h2>
         </div>
@@ -40,7 +38,7 @@ export const CalendarMonth = ({
             type="button"
             onClick={onPreviousMonth}
             aria-label="Ir al mes anterior"
-            className="secondary-button px-3 py-3"
+            className="secondary-button h-11 w-11 rounded-full p-0"
           >
             <ArrowLeftIcon className="h-4 w-4" />
           </button>
@@ -48,7 +46,7 @@ export const CalendarMonth = ({
             type="button"
             onClick={onNextMonth}
             aria-label="Ir al mes siguiente"
-            className="secondary-button px-3 py-3"
+            className="secondary-button h-11 w-11 rounded-full p-0"
           >
             <ArrowRightIcon className="h-4 w-4" />
           </button>
@@ -59,7 +57,7 @@ export const CalendarMonth = ({
         {weekdayLabels.map((label) => (
           <span
             key={label}
-            className="text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-50"
+            className="text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-fog-400"
           >
             {label}
           </span>
@@ -78,12 +76,12 @@ export const CalendarMonth = ({
               aria-label={`${cell.date.getDate()} de ${getMonthLabel(cell.date)}`}
               aria-pressed={isSelected}
               className={cn(
-                "relative aspect-square rounded-[22px] border text-sm font-semibold transition duration-300",
+                "relative aspect-square rounded-[18px] border text-sm font-semibold transition duration-300",
                 isSelected
-                  ? "border-blush-300 bg-[linear-gradient(180deg,rgba(252,246,247,0.96),rgba(245,231,236,0.9))] text-ink-200 shadow-[0_18px_30px_rgba(196,141,160,0.12)]"
-                  : "border-white/70 bg-white/64 text-ink-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.88)]",
+                  ? "border-accent-400/24 bg-accent-500/12 text-fog-100 shadow-[0_14px_28px_rgba(17,114,230,0.18)]"
+                  : "border-white/6 bg-white/[0.02] text-fog-200",
                 !cell.inCurrentMonth && "opacity-35",
-                isToday && !isSelected && "ring-1 ring-blush-200"
+                isToday && !isSelected && "ring-1 ring-accent-400/24"
               )}
             >
               <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
@@ -91,7 +89,7 @@ export const CalendarMonth = ({
               </span>
 
               {sessionCount > 0 && (
-                <span className="absolute bottom-2 left-1/2 flex h-5 min-w-[1.25rem] -translate-x-1/2 items-center justify-center rounded-full bg-ink-200 px-1 text-[10px] font-semibold text-white">
+                <span className="absolute bottom-1.5 left-1/2 flex h-5 min-w-[1.25rem] -translate-x-1/2 items-center justify-center rounded-full bg-mint-500/18 px-1 text-[10px] font-semibold text-mint-300">
                   {sessionCount}
                 </span>
               )}
