@@ -13,6 +13,8 @@ export type WorkoutKind = "strength" | "active" | "rest";
 
 export type WeightUnit = "kg" | "lb";
 
+export type TrainingMode = "traditional" | "alternated" | "circuit";
+
 export type SleepQuality = "excelente" | "bien" | "regular" | "mal";
 
 export type EnergyLevel = "alta" | "media" | "baja";
@@ -237,4 +239,6 @@ export type ProgressState = {
     Partial<Record<DayId, Record<string, ExerciseProgressState>>>
   >;
   sessionStrategyByWeek: Record<string, Partial<Record<DayId, SessionStrategy>>>;
+  trainingModeByWeek: Record<string, Partial<Record<DayId, TrainingMode>>>;
+  trainingModePreference: TrainingMode | null;
 };

@@ -17,6 +17,7 @@ import type {
   SessionStrategy,
   SleepQuality,
   TimeAvailability,
+  TrainingMode,
   WeightUnit,
   WorkoutHistoryEntry,
   WorkoutKind,
@@ -42,6 +43,9 @@ const isDayId = (value: unknown): value is DayId =>
   typeof value === "string" && dayIds.includes(value as DayId);
 
 const isWeightUnit = (value: unknown): value is WeightUnit => value === "kg" || value === "lb";
+
+const isTrainingMode = (value: unknown): value is TrainingMode =>
+  value === "traditional" || value === "alternated" || value === "circuit";
 
 const normalizeStringList = (value: unknown) =>
   Array.isArray(value)
@@ -365,6 +369,37 @@ const normalizeSessionStrategyByWeek = (
   );
 };
 
+const normalizeTrainingModePreference = (value: unknown): TrainingMode | null =>
+  isTrainingMode(value) ? value : null;
+
+const normalizeTrainingModeByWeek = (
+  value: unknown
+): Record<string, Partial<Record<DayId, TrainingMode>>> => {
+  if (!isRecord(value)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).flatMap(([weekKey, rawWeek]) => {
+      if (!isRecord(rawWeek)) {
+        return [];
+      }
+
+      const dayModes: Partial<Record<DayId, TrainingMode>> = {};
+
+      for (const [dayKey, rawMode] of Object.entries(rawWeek)) {
+        if (!isDayId(dayKey) || !isTrainingMode(rawMode)) {
+          continue;
+        }
+
+        dayModes[dayKey] = rawMode;
+      }
+
+      return Object.keys(dayModes).length > 0 ? [[weekKey, dayModes]] : [];
+    })
+  );
+};
+
 const getWeightPartsFromSummary = (summary: string, exerciseId: string) => {
   const trimmed = summary.trim();
   if (!trimmed) {
@@ -616,7 +651,9 @@ export const createDefaultProgress = (): ProgressState => ({
   notificationSettings: createDefaultNotificationSettings(),
   checkInsByWeek: {},
   exerciseStatesByWeek: {},
-  sessionStrategyByWeek: {}
+  sessionStrategyByWeek: {},
+  trainingModeByWeek: {},
+  trainingModePreference: null
 });
 
 export const normalizeProgress = (value: unknown): ProgressState => {
@@ -644,6 +681,8 @@ export const normalizeProgress = (value: unknown): ProgressState => {
             checkedExercisesByWeek,
             weightsByWeek
           }),
-    sessionStrategyByWeek: normalizeSessionStrategyByWeek(value.sessionStrategyByWeek)
+    sessionStrategyByWeek: normalizeSessionStrategyByWeek(value.sessionStrategyByWeek),
+    trainingModeByWeek: normalizeTrainingModeByWeek(value.trainingModeByWeek),
+    trainingModePreference: normalizeTrainingModePreference(value.trainingModePreference)
   };
 };

@@ -2,18 +2,29 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "../components/Card";
 import { ExerciseHistoryCard } from "../components/ExerciseHistoryCard";
 import { ExerciseMotionPreview } from "../components/ExerciseMotionPreview";
-import { ArrowLeftIcon, CheckIcon, TimerIcon } from "../components/Icons";
+import {
+  ArrowLeftIcon,
+  CheckIcon,
+  DumbbellIcon,
+  LoopIcon,
+  TimerIcon,
+  ZapIcon
+} from "../components/Icons";
 import { ProgressBar } from "../components/ProgressBar";
 import { SectionIntro } from "../components/SectionIntro";
+import { trainingModeById } from "../data/trainingModes";
 import type {
   ExerciseProgressState,
   FeltArea,
   PlannedExercise,
+  TrainingMode,
   WeightUnit,
   WorkoutDay
 } from "../types";
 import { cn } from "../utils/cn";
-import { getSuggestedPair, getRecommendationReasonList } from "../utils/recommendations";
+import { getRecommendationReasonList, getSuggestedPair } from "../utils/recommendations";
+import { getTrainingStepFlow } from "../utils/session";
+import type { TrainingRoundSummary, TrainingStep } from "../utils/session";
 import { formatTimer } from "../utils/training";
 import {
   convertWeight,
@@ -23,17 +34,22 @@ import {
 } from "../utils/units";
 
 type WorkoutScreenProps = {
+  activeTrainingMode: TrainingMode;
   canGoPrevious: boolean;
+  completedStepCount: number;
   currentExercise: PlannedExercise | null;
   currentExerciseIndex: number;
+  currentSetIndex: number | null;
+  currentStep: TrainingStep | null;
   currentWeek: number;
   exerciseCount: number;
-  isLastExercise: boolean;
+  isLastStep: boolean;
   isWorkoutComplete: boolean;
   lastExerciseDate: string | null;
   lastExerciseRpe: number | null;
   lastExerciseWeight: string | null;
   nextExerciseName: string | null;
+  nextStep: TrainingStep | null;
   notificationEnabled: boolean;
   onAdvance: () => void;
   onApplyRecommendation: () => void;
@@ -46,8 +62,10 @@ type WorkoutScreenProps = {
   onSetWeightUnit: (value: WeightUnit) => void;
   onSetWeightValue: (value: string) => void;
   onToggleSet: (setIndex: number) => void;
+  roundSummary: TrainingRoundSummary | null;
   sparklinePoints: number[];
   state: ExerciseProgressState | null;
+  totalStepCount: number;
   workout: WorkoutDay;
 };
 
@@ -62,18 +80,70 @@ const feltAreaLabel: Record<FeltArea, string> = {
   otro: "Otro"
 };
 
+const modeIconMap = {
+  alternated: LoopIcon,
+  circuit: ZapIcon,
+  traditional: DumbbellIcon
+} as const;
+
+const getDefaultStatusMessage = (mode: TrainingMode) => {
+  switch (mode) {
+    case "alternated":
+      return "Cierra esta serie y seguimos con la ronda.";
+    case "circuit":
+      return "Cada cambio activa descanso antes del siguiente ejercicio.";
+    default:
+      return "Completa este bloque y deja que la app guíe el siguiente paso.";
+  }
+};
+
+const getFlowDescription = (
+  mode: TrainingMode,
+  isLastStep: boolean,
+  nextExerciseName: string | null
+) => {
+  if (isLastStep) {
+    return "Último bloque del día";
+  }
+
+  switch (mode) {
+    case "alternated":
+      return nextExerciseName ? `La ronda sigue con ${nextExerciseName}` : "La ronda sigue";
+    case "circuit":
+      return nextExerciseName ? `Descanso y luego ${nextExerciseName}` : "Descanso y cambio";
+    default:
+      return nextExerciseName ? `Después sigue ${nextExerciseName}` : "Siguiente paso listo";
+  }
+};
+
+const getFlowMicrocopy = (mode: TrainingMode) => {
+  switch (mode) {
+    case "alternated":
+      return "No hay descanso entre ejercicios. El cronómetro arranca al cerrar la ronda.";
+    case "circuit":
+      return "Cada cambio de ejercicio activa descanso antes del siguiente bloque.";
+    default:
+      return "La app arranca descanso entre series y avanza al siguiente ejercicio cuando terminas el bloque.";
+  }
+};
+
 export const WorkoutScreen = ({
+  activeTrainingMode,
   canGoPrevious,
+  completedStepCount,
   currentExercise,
   currentExerciseIndex,
+  currentSetIndex,
+  currentStep,
   currentWeek,
   exerciseCount,
-  isLastExercise,
+  isLastStep,
   isWorkoutComplete,
   lastExerciseDate,
   lastExerciseRpe,
   lastExerciseWeight,
   nextExerciseName,
+  nextStep,
   notificationEnabled,
   onAdvance,
   onApplyRecommendation,
@@ -86,16 +156,20 @@ export const WorkoutScreen = ({
   onSetWeightUnit,
   onSetWeightValue,
   onToggleSet,
+  roundSummary,
   sparklinePoints,
   state,
+  totalStepCount,
   workout
 }: WorkoutScreenProps) => {
   const advanceTimeoutRef = useRef<number | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
-  const [statusMessage, setStatusMessage] = useState(
-    "Marca cada serie y deja que la app te lleve al siguiente paso."
-  );
+  const [advanceAfterRest, setAdvanceAfterRest] = useState(false);
+  const [statusMessage, setStatusMessage] = useState(getDefaultStatusMessage(activeTrainingMode));
+  const modeDefinition = trainingModeById[activeTrainingMode];
+  const ModeIcon = modeIconMap[activeTrainingMode];
+
   const clearAdvanceTimeout = () => {
     if (advanceTimeoutRef.current != null) {
       window.clearTimeout(advanceTimeoutRef.current);
@@ -110,6 +184,8 @@ export const WorkoutScreen = ({
 
   useEffect(() => {
     clearAdvanceTimeout();
+    setAdvanceAfterRest(false);
+
     if (!currentExercise) {
       setIsRunning(false);
       setSecondsLeft(0);
@@ -118,8 +194,8 @@ export const WorkoutScreen = ({
 
     setIsRunning(false);
     setSecondsLeft(currentExercise.plannedRestSeconds);
-    setStatusMessage("Marca cada serie y deja que la app te lleve al siguiente paso.");
-  }, [currentExercise]);
+    setStatusMessage(getDefaultStatusMessage(activeTrainingMode));
+  }, [activeTrainingMode, currentExercise?.id, currentSetIndex]);
 
   useEffect(() => {
     if (!isRunning) {
@@ -128,11 +204,20 @@ export const WorkoutScreen = ({
 
     if (secondsLeft <= 0) {
       setIsRunning(false);
-      setStatusMessage("Comienza la siguiente serie.");
+      setStatusMessage(advanceAfterRest ? "Descanso listo. Seguimos." : "Comienza la siguiente serie.");
       if ("vibrate" in navigator) {
         navigator.vibrate([120, 80, 120]);
       }
       onRestTimerComplete(workout.title, currentExercise?.plannedRestSeconds ?? 0);
+
+      if (advanceAfterRest && nextStep) {
+        setAdvanceAfterRest(false);
+        advanceTimeoutRef.current = window.setTimeout(() => {
+          advanceTimeoutRef.current = null;
+          onAdvance();
+        }, 240);
+      }
+
       return;
     }
 
@@ -141,7 +226,16 @@ export const WorkoutScreen = ({
     }, 1000);
 
     return () => window.clearTimeout(timeoutId);
-  }, [currentExercise?.plannedRestSeconds, isRunning, onRestTimerComplete, secondsLeft, workout.title]);
+  }, [
+    advanceAfterRest,
+    currentExercise?.plannedRestSeconds,
+    isRunning,
+    nextStep,
+    onAdvance,
+    onRestTimerComplete,
+    secondsLeft,
+    workout.title
+  ]);
 
   const parsedWeight = state?.weightValue ? parseWeightValue(state.weightValue) : null;
   const weightPair = useMemo(() => {
@@ -223,7 +317,7 @@ export const WorkoutScreen = ({
     );
   }
 
-  if (!currentExercise || !state) {
+  if (!currentExercise || !state || !currentStep) {
     return (
       <div className="space-y-5">
         <SectionIntro
@@ -246,51 +340,84 @@ export const WorkoutScreen = ({
   }
 
   const completedSetCount = state.completedSets.filter(Boolean).length;
-  const progressValue = (currentExerciseIndex + 1) / Math.max(exerciseCount, 1);
+  const progressValue = totalStepCount > 0 ? (completedStepCount / totalStepCount) * 100 : 0;
+  const roundProgressValue =
+    activeTrainingMode === "alternated" && roundSummary
+      ? (roundSummary.currentRound / Math.max(roundSummary.totalRounds, 1)) * 100
+      : 0;
   const suggestedPair = getSuggestedPair(currentExercise.recommendation);
   const recommendationReasons = getRecommendationReasonList(currentExercise.recommendation);
 
   const handleToggleSet = (setIndex: number) => {
     clearAdvanceTimeout();
-
     const isActivating = !state.completedSets[setIndex];
-    const nextCompletedCount = completedSetCount + (isActivating ? 1 : -1);
+    const isCurrentSet = currentSetIndex === setIndex;
+
     onToggleSet(setIndex);
 
     if (!isActivating) {
+      setAdvanceAfterRest(false);
       setIsRunning(false);
       setSecondsLeft(currentExercise.plannedRestSeconds);
       setStatusMessage("Serie reabierta. Ajusta lo que necesites.");
       return;
     }
 
-    if (nextCompletedCount < currentExercise.plannedSets) {
+    if (!isCurrentSet) {
+      setAdvanceAfterRest(false);
+      setIsRunning(false);
       setSecondsLeft(currentExercise.plannedRestSeconds);
-      setIsRunning(true);
-      setStatusMessage("Descansa. Te avisaremos para la siguiente serie.");
-      if ("vibrate" in navigator) {
-        navigator.vibrate(50);
-      }
+      setStatusMessage("Serie guardada. El flujo se reajustó.");
       return;
     }
 
-    setIsRunning(false);
-    setSecondsLeft(currentExercise.plannedRestSeconds);
+    if (!nextStep) {
+      setAdvanceAfterRest(false);
+      setIsRunning(false);
+      setSecondsLeft(currentExercise.plannedRestSeconds);
+      if ("vibrate" in navigator) {
+        navigator.vibrate([80, 50, 100]);
+      }
+      setStatusMessage("Último bloque completo. Ya puedes cerrar la sesión.");
+      return;
+    }
+
+    const stepFlow = getTrainingStepFlow(activeTrainingMode, currentStep, nextStep);
+    const shouldRest =
+      stepFlow === "rest-between-rounds" ||
+      stepFlow === "rest-between-sets" ||
+      stepFlow === "rest-between-exercises";
 
     if ("vibrate" in navigator) {
-      navigator.vibrate([80, 50, 100]);
+      navigator.vibrate(shouldRest ? 70 : [80, 50, 100]);
     }
 
-    if (!isLastExercise) {
-      setStatusMessage("Bloque listo. Pasando al siguiente ejercicio...");
-      advanceTimeoutRef.current = window.setTimeout(() => {
-        advanceTimeoutRef.current = null;
-        onAdvance();
-      }, 1100);
+    if (shouldRest) {
+      setSecondsLeft(currentExercise.plannedRestSeconds);
+      setAdvanceAfterRest(true);
+      setIsRunning(true);
+      setStatusMessage(
+        stepFlow === "rest-between-rounds"
+          ? "Ronda cerrada. Descansa y seguimos."
+          : stepFlow === "rest-between-exercises"
+            ? "Descansa. El siguiente ejercicio va enseguida."
+            : "Descansa. Luego sigue la siguiente serie."
+      );
       return;
     }
 
-    setStatusMessage("Último ejercicio completo. Ya puedes cerrar la sesión.");
+    setAdvanceAfterRest(false);
+    setIsRunning(false);
+    setSecondsLeft(currentExercise.plannedRestSeconds);
+    setStatusMessage(
+      activeTrainingMode === "alternated"
+        ? "Seguimos con la misma ronda."
+        : "Bloque listo. Pasando al siguiente ejercicio..."
+    );
+    advanceTimeoutRef.current = window.setTimeout(() => {
+      advanceTimeoutRef.current = null;
+      onAdvance();
+    }, activeTrainingMode === "alternated" ? 520 : 860);
   };
 
   return (
@@ -299,26 +426,58 @@ export const WorkoutScreen = ({
         eyebrow={`Semana ${currentWeek}`}
         title={currentExercise.name}
         description={currentExercise.muscleGroup}
-        side={<span className="badge-soft">{currentExerciseIndex + 1}/{exerciseCount}</span>}
+        side={<span className="badge-soft">Ej. {currentExerciseIndex + 1}/{exerciseCount}</span>}
       />
 
       <div className="space-y-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="mode-capsule">
+            <ModeIcon className="h-4 w-4" />
+            <span>{modeDefinition.title}</span>
+          </span>
+          <span className="badge-soft">Serie {currentStep.setIndex + 1}/{currentExercise.plannedSets}</span>
+          {activeTrainingMode === "alternated" && roundSummary && (
+            <span className="badge-soft">Ronda {roundSummary.currentRound}/{roundSummary.totalRounds}</span>
+          )}
+        </div>
+
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <ProgressBar value={progressValue * 100} max={100} />
+            <ProgressBar value={progressValue} max={100} />
             <p className="mt-3 text-sm text-fog-300">{statusMessage}</p>
           </div>
           {canGoPrevious && (
             <button
               type="button"
               onClick={onGoPrevious}
-              aria-label="Volver al ejercicio anterior"
+              aria-label="Volver al paso anterior"
               className="secondary-button h-11 w-11 shrink-0 rounded-full p-0"
             >
               <ArrowLeftIcon className="h-4 w-4" />
             </button>
           )}
         </div>
+
+        {activeTrainingMode === "alternated" && roundSummary && (
+          <Card className="space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="eyebrow">Progreso por rondas</p>
+                <h2 className="mt-2 text-[1.35rem] font-semibold tracking-[-0.04em] text-fog-100">
+                  Ronda {roundSummary.currentRound} de {roundSummary.totalRounds}
+                </h2>
+              </div>
+              <span className="badge-soft">
+                {roundSummary.currentRoundStep}/{roundSummary.roundStepCount} ejercicios
+              </span>
+            </div>
+
+            <ProgressBar value={roundProgressValue} max={100} />
+            <p className="text-sm leading-6 text-fog-300">
+              {completedStepCount}/{totalStepCount} series registradas.
+            </p>
+          </Card>
+        )}
 
         <ExerciseMotionPreview exercise={currentExercise} />
 
@@ -394,9 +553,7 @@ export const WorkoutScreen = ({
                   inputMode="decimal"
                   value={state.weightValue}
                   onChange={(event) => onSetWeightValue(event.target.value)}
-                  placeholder={
-                    suggestedInputValue || "Ej. 20"
-                  }
+                  placeholder={suggestedInputValue || "Ej. 20"}
                   className="min-w-0 flex-1 bg-transparent text-[1.3rem] font-semibold text-fog-100 outline-none placeholder:text-fog-400"
                 />
 
@@ -442,7 +599,11 @@ export const WorkoutScreen = ({
                   type="button"
                   onClick={() => handleToggleSet(index)}
                   aria-pressed={isDone}
-                  className={cn("set-bubble", isDone && "set-bubble-active")}
+                  className={cn(
+                    "set-bubble",
+                    currentSetIndex === index && !isDone && "set-bubble-focus",
+                    isDone && "set-bubble-active"
+                  )}
                 >
                   {isDone ? <CheckIcon className="h-4 w-4" /> : index + 1}
                 </button>
@@ -458,7 +619,10 @@ export const WorkoutScreen = ({
                   key={value}
                   type="button"
                   onClick={() => onSetRpe(value)}
-                  className={cn("choice-chip min-h-[46px] px-4 py-3", state.rpe === value && "choice-chip-active")}
+                  className={cn(
+                    "choice-chip min-h-[46px] px-4 py-3",
+                    state.rpe === value && "choice-chip-active"
+                  )}
                 >
                   {value}
                 </button>
@@ -491,11 +655,7 @@ export const WorkoutScreen = ({
             <div>
               <p className="eyebrow">Flujo guiado</p>
               <h3 className="mt-2 text-[1.2rem] font-semibold text-fog-100">
-                {isLastExercise
-                  ? "Último bloque del día"
-                  : nextExerciseName
-                    ? `Después sigue ${nextExerciseName}`
-                    : "Siguiente paso listo"}
+                {getFlowDescription(activeTrainingMode, isLastStep, nextExerciseName)}
               </h3>
             </div>
             <span className="flex h-11 w-11 items-center justify-center rounded-full bg-accent-500/12 text-accent-300">
@@ -503,9 +663,7 @@ export const WorkoutScreen = ({
             </span>
           </div>
 
-          <p className="text-sm leading-6 text-fog-300">
-            La app arranca descanso cuando marcas una serie y avanza sola al siguiente ejercicio en cuanto terminas este bloque.
-          </p>
+          <p className="text-sm leading-6 text-fog-300">{getFlowMicrocopy(activeTrainingMode)}</p>
 
           <button
             type="button"
@@ -513,7 +671,7 @@ export const WorkoutScreen = ({
             disabled={!isWorkoutComplete}
             className="primary-button w-full"
           >
-            {isLastExercise ? "Finalizar entrenamiento" : "Guardar avance completo"}
+            {isLastStep ? "Finalizar entrenamiento" : "Guardar avance completo"}
           </button>
         </Card>
       </div>

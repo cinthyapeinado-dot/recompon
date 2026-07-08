@@ -53,6 +53,21 @@ export const SparkIcon = (props: IconProps) => (
   </svg>
 );
 
+export const LoopIcon = (props: IconProps) => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" {...defaultProps} {...props}>
+    <path d="M4 8a6 6 0 0 1 6-6h8" />
+    <path d="m15 2 3 3-3 3" />
+    <path d="M20 16a6 6 0 0 1-6 6H6" />
+    <path d="m9 22-3-3 3-3" />
+  </svg>
+);
+
+export const ZapIcon = (props: IconProps) => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" {...defaultProps} {...props}>
+    <path d="M13 2 5 13h5l-1 9 8-11h-5l1-9Z" />
+  </svg>
+);
+
 export const CheckIcon = (props: IconProps) => (
   <svg viewBox="0 0 24 24" aria-hidden="true" {...defaultProps} {...props}>
     <path d="m5 12.5 4.2 4.2L19 7.4" />
@@ -70,6 +85,12 @@ export const ArrowLeftIcon = (props: IconProps) => (
   <svg viewBox="0 0 24 24" aria-hidden="true" {...defaultProps} {...props}>
     <path d="M19 12H5" />
     <path d="m11 6-6 6 6 6" />
+  </svg>
+);
+
+export const ChevronDownIcon = (props: IconProps) => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" {...defaultProps} {...props}>
+    <path d="m6 9 6 6 6-6" />
   </svg>
 );
 

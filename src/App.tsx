@@ -1,14 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { athleteProfile } from "./data/athleteProfile";
 import { BottomNav } from "./components/BottomNav";
 import { ConfirmationSheet } from "./components/ConfirmationSheet";
 import { FloatingTodayButton } from "./components/FloatingTodayButton";
+import { TrainingModeSheet } from "./components/TrainingModeSheet";
 import { workouts, workoutsById } from "./data/workouts";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import { AgendaScreen } from "./screens/AgendaScreen";
 import { CheckInScreen } from "./screens/CheckInScreen";
 import { HomeScreen } from "./screens/HomeScreen";
 import { ProgressionScreen } from "./screens/ProgressionScreen";
+import { TrainingModeOnboardingScreen } from "./screens/TrainingModeOnboardingScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { WorkoutScreen } from "./screens/WorkoutScreen";
 import type {
@@ -23,6 +25,7 @@ import type {
   PlannedExercise,
   ProgressState,
   SessionStrategy,
+  TrainingMode,
   WeightUnit,
   WorkoutHistoryEntry
 } from "./types";
@@ -39,8 +42,12 @@ import {
   getLatestExerciseLog
 } from "./utils/training";
 import {
+  buildTrainingSequence,
   createExerciseState,
-  findCurrentExerciseIndex,
+  findCurrentTrainingStepIndex,
+  findNextPendingTrainingStepIndex,
+  getCompletedTrainingStepCount,
+  getTrainingRoundSummary,
   getWeightSummary,
   isExerciseComplete
 } from "./utils/session";
@@ -120,9 +127,11 @@ function App() {
   const [activeScreen, setActiveScreen] = useState<AppScreen>("home");
   const [selectedDayId, setSelectedDayId] = useState<DayId>(todayDayId);
   const [isResetSheetOpen, setResetSheetOpen] = useState(false);
+  const [isTrainingModeSheetOpen, setTrainingModeSheetOpen] = useState(false);
   const [notificationPermission, setNotificationPermission] =
     useState<NotificationPermissionState>(getNotificationPermissionState);
-  const [workoutExerciseIndex, setWorkoutExerciseIndex] = useState(0);
+  const [trainingModeDraft, setTrainingModeDraft] = useState<TrainingMode>("traditional");
+  const [workoutStepIndex, setWorkoutStepIndex] = useState(0);
   const [progress, setProgress] = useLocalStorage<ProgressState>(
     STORAGE_KEY,
     createDefaultProgress,
@@ -158,6 +167,14 @@ function App() {
   const selectedStrategy =
     progress.sessionStrategyByWeek[currentWeekKey]?.[selectedDayId] ?? "pending";
   const todayStrategy = progress.sessionStrategyByWeek[currentWeekKey]?.[todayDayId] ?? "pending";
+  const selectedTrainingMode =
+    progress.trainingModeByWeek[currentWeekKey]?.[selectedDayId] ??
+    progress.trainingModePreference ??
+    "traditional";
+  const todayTrainingMode =
+    progress.trainingModeByWeek[currentWeekKey]?.[todayDayId] ??
+    progress.trainingModePreference ??
+    "traditional";
   const selectedDayHistory = useMemo(
     () => progress.history.filter((entry) => entry.dayId === selectedDayId),
     [progress.history, selectedDayId]
@@ -192,54 +209,77 @@ function App() {
   const selectedExercisePlans = selectedCoachPlan.exercisePlans;
   const selectedExerciseStates =
     progress.exerciseStatesByWeek[currentWeekKey]?.[selectedDayId] ?? {};
+  const todayExerciseStates = progress.exerciseStatesByWeek[currentWeekKey]?.[todayDayId] ?? {};
   const normalizedExerciseStates = Object.fromEntries(
     selectedExercisePlans.map((exercise) => [
       exercise.id,
       createExerciseState(exercise, selectedExerciseStates[exercise.id])
     ])
   ) as Record<string, ExerciseProgressState>;
-  const derivedWorkoutStartIndex = useMemo(() => {
-    if (selectedExercisePlans.length === 0) {
-      return 0;
-    }
-
-    const firstIncompleteIndex = findCurrentExerciseIndex(
-      selectedExercisePlans,
-      normalizedExerciseStates
-    );
-
-    const allComplete = selectedExercisePlans.every((exercise) =>
-      isExerciseComplete(exercise, normalizedExerciseStates[exercise.id])
-    );
-
-    return allComplete ? selectedExercisePlans.length : firstIncompleteIndex;
-  }, [normalizedExerciseStates, selectedExercisePlans]);
+  const selectedTrainingSequence = useMemo(
+    () => buildTrainingSequence(selectedExercisePlans, selectedTrainingMode),
+    [selectedExercisePlans, selectedTrainingMode]
+  );
+  const derivedWorkoutStartIndex = useMemo(
+    () =>
+      findCurrentTrainingStepIndex(
+        selectedTrainingSequence,
+        selectedExercisePlans,
+        normalizedExerciseStates
+      ),
+    [normalizedExerciseStates, selectedExercisePlans, selectedTrainingSequence]
+  );
 
   useEffect(() => {
     if (activeScreen !== "workout") {
       return;
     }
 
-    setWorkoutExerciseIndex(derivedWorkoutStartIndex);
-  }, [activeScreen, progress.currentWeek, selectedDayId]);
+    setWorkoutStepIndex(derivedWorkoutStartIndex);
+  }, [activeScreen, derivedWorkoutStartIndex, progress.currentWeek, selectedDayId, selectedTrainingMode]);
 
   useEffect(() => {
-    if (workoutExerciseIndex > selectedExercisePlans.length) {
-      setWorkoutExerciseIndex(selectedExercisePlans.length);
+    if (workoutStepIndex > selectedTrainingSequence.length) {
+      setWorkoutStepIndex(selectedTrainingSequence.length);
     }
-  }, [selectedExercisePlans.length, workoutExerciseIndex]);
+  }, [selectedTrainingSequence.length, workoutStepIndex]);
 
-  const currentExercise = selectedExercisePlans[workoutExerciseIndex] ?? null;
+  const currentStep = selectedTrainingSequence[workoutStepIndex] ?? null;
+  const completedTrainingStepCount = getCompletedTrainingStepCount(
+    selectedTrainingSequence,
+    selectedExercisePlans,
+    normalizedExerciseStates
+  );
+  const nextPendingTrainingStepIndex =
+    currentStep == null
+      ? selectedTrainingSequence.length
+      : findNextPendingTrainingStepIndex(
+          selectedTrainingSequence,
+          selectedExercisePlans,
+          normalizedExerciseStates,
+          workoutStepIndex + 1
+        );
+  const nextTrainingStep =
+    nextPendingTrainingStepIndex < selectedTrainingSequence.length
+      ? selectedTrainingSequence[nextPendingTrainingStepIndex]
+      : null;
+  const currentExercise =
+    currentStep != null ? selectedExercisePlans[currentStep.exerciseIndex] ?? null : null;
   const currentExerciseState = currentExercise
     ? normalizedExerciseStates[currentExercise.id]
     : null;
   const isWorkoutComplete =
     selectedWorkout.kind !== "strength"
       ? true
-      : selectedExercisePlans.length > 0 &&
-        selectedExercisePlans.every((exercise) =>
-          isExerciseComplete(exercise, normalizedExerciseStates[exercise.id])
-        );
+      : selectedTrainingSequence.length > 0 &&
+        selectedTrainingSequence.every((step) => {
+          const exercise = selectedExercisePlans[step.exerciseIndex];
+          return exercise
+            ? createExerciseState(exercise, normalizedExerciseStates[exercise.id]).completedSets[
+                step.setIndex
+              ] === true
+            : true;
+        });
   const latestExerciseLog = currentExercise
     ? getLatestExerciseLog(selectedDayHistory, currentExercise.id)
     : null;
@@ -252,6 +292,20 @@ function App() {
   const hasSessionToday = progress.history.some(
     (entry) => entry.calendarDate === todayCalendarDate
   );
+  const currentRoundSummary =
+    currentStep != null ? getTrainingRoundSummary(selectedTrainingSequence, workoutStepIndex) : null;
+  const isTrainingModeSetupRequired = progress.trainingModePreference == null;
+  const todaySessionLocked =
+    todayWorkout.kind !== "strength" ||
+    completedDays.includes(todayDayId) ||
+    Object.keys(todayExerciseStates).length > 0;
+  const trainingSequenceRef = useRef(selectedTrainingSequence);
+  const exercisePlansRef = useRef(selectedExercisePlans);
+  const exerciseStatesRef = useRef(normalizedExerciseStates);
+
+  trainingSequenceRef.current = selectedTrainingSequence;
+  exercisePlansRef.current = selectedExercisePlans;
+  exerciseStatesRef.current = normalizedExerciseStates;
 
   const syncDerivedDayState = (
     exercises: PlannedExercise[],
@@ -270,6 +324,109 @@ function App() {
     );
 
     return { checkedIds, weights };
+  };
+
+  const resolveModeForDay = (
+    value: ProgressState,
+    weekKey: string,
+    dayId: DayId
+  ): TrainingMode | null =>
+    value.trainingModeByWeek[weekKey]?.[dayId] ?? value.trainingModePreference;
+
+  const withPersistedTrainingModeForDay = (
+    value: ProgressState,
+    weekKey: string,
+    dayId: DayId,
+    mode: TrainingMode | null
+  ) => {
+    if (workoutsById[dayId].kind !== "strength" || mode == null) {
+      return value;
+    }
+
+    if (value.trainingModeByWeek[weekKey]?.[dayId] === mode) {
+      return value;
+    }
+
+    return {
+      ...value,
+      trainingModeByWeek: {
+        ...value.trainingModeByWeek,
+        [weekKey]: {
+          ...(value.trainingModeByWeek[weekKey] ?? {}),
+          [dayId]: mode
+        }
+      }
+    };
+  };
+
+  const advanceWorkoutStep = () => {
+    const nextIndex = findNextPendingTrainingStepIndex(
+      trainingSequenceRef.current,
+      exercisePlansRef.current,
+      exerciseStatesRef.current,
+      workoutStepIndex + 1
+    );
+
+    setWorkoutStepIndex(nextIndex);
+  };
+
+  const openTrainingModeOptions = () => {
+    setTrainingModeDraft(todayTrainingMode);
+    setTrainingModeSheetOpen(true);
+  };
+
+  const handleUseTrainingModeForToday = () => {
+    if (todaySessionLocked || todayWorkout.kind !== "strength") {
+      setTrainingModeSheetOpen(false);
+      return;
+    }
+
+    setProgress((currentValue) => {
+      const weekKey = String(currentValue.currentWeek);
+
+      return {
+        ...currentValue,
+        trainingModeByWeek: {
+          ...currentValue.trainingModeByWeek,
+          [weekKey]: {
+            ...(currentValue.trainingModeByWeek[weekKey] ?? {}),
+            [todayDayId]: trainingModeDraft
+          }
+        }
+      };
+    });
+    setTrainingModeSheetOpen(false);
+  };
+
+  const handleSaveTrainingModePreference = () => {
+    setProgress((currentValue) => {
+      const weekKey = String(currentValue.currentWeek);
+      const preservedSessionValue =
+        todaySessionLocked && todayWorkout.kind === "strength"
+          ? withPersistedTrainingModeForDay(
+              currentValue,
+              weekKey,
+              todayDayId,
+              resolveModeForDay(currentValue, weekKey, todayDayId)
+            )
+          : currentValue;
+      const nextValue: ProgressState = {
+        ...preservedSessionValue,
+        trainingModePreference: trainingModeDraft
+      };
+
+      return todaySessionLocked || todayWorkout.kind !== "strength"
+        ? nextValue
+        : withPersistedTrainingModeForDay(nextValue, weekKey, todayDayId, trainingModeDraft);
+    });
+    setTrainingModeSheetOpen(false);
+  };
+
+  const handleCompleteTrainingModeOnboarding = () => {
+    setProgress((currentValue) => ({
+      ...currentValue,
+      trainingModePreference: trainingModeDraft
+    }));
   };
 
   const sendLocalNotification = async (
@@ -330,14 +487,23 @@ function App() {
     const resolvedWeek = clampWeek(week);
     const nextScreen = shouldOpenCheckIn(dayId, resolvedWeek) ? "checkin" : "workout";
 
-    setProgress((currentValue) =>
-      currentValue.currentWeek === resolvedWeek
-        ? currentValue
-        : {
-            ...currentValue,
-            currentWeek: resolvedWeek
-          }
-    );
+    setProgress((currentValue) => {
+      const weekKey = String(resolvedWeek);
+      const nextValue =
+        currentValue.currentWeek === resolvedWeek
+          ? currentValue
+          : {
+              ...currentValue,
+              currentWeek: resolvedWeek
+            };
+
+      return withPersistedTrainingModeForDay(
+        nextValue,
+        weekKey,
+        dayId,
+        resolveModeForDay(currentValue, weekKey, dayId)
+      );
+    });
     setSelectedDayId(dayId);
     setActiveScreen(nextScreen);
   };
@@ -673,12 +839,14 @@ function App() {
   const handleConfirmReset = () => {
     setProgress((currentValue) => ({
       ...createDefaultProgress(),
-      notificationSettings: currentValue.notificationSettings
+      notificationSettings: currentValue.notificationSettings,
+      trainingModePreference: currentValue.trainingModePreference
     }));
     setSelectedDayId(todayDayId);
-    setWorkoutExerciseIndex(0);
+    setWorkoutStepIndex(0);
     setActiveScreen("home");
     setResetSheetOpen(false);
+    setTrainingModeSheetOpen(false);
   };
 
   useEffect(() => {
@@ -737,8 +905,10 @@ function App() {
             expectedEnergy={energyLabelMap[todayWorkout.expectedEnergy]}
             focus={todayWorkout.focus}
             onOpenToday={openToday}
+            onOpenTrainingModeOptions={openTrainingModeOptions}
             todayLabel={todayWorkout.label}
             todayTitle={todayWorkout.title}
+            trainingMode={todayTrainingMode}
           />
         );
       case "checkin":
@@ -746,10 +916,10 @@ function App() {
           <CheckInScreen
             calendarDate={todayCalendarDate}
             currentWeek={progress.currentWeek}
-            history={todayHistory}
-            initialValue={todayCheckIn}
+            history={selectedDayHistory}
+            initialValue={selectedCheckIn}
             onComplete={handleCheckInComplete}
-            workout={todayWorkout}
+            workout={selectedWorkout}
           />
         );
       case "agenda":
@@ -767,12 +937,16 @@ function App() {
       case "workout":
         return (
           <WorkoutScreen
-            canGoPrevious={workoutExerciseIndex > 0}
+            activeTrainingMode={selectedTrainingMode}
+            canGoPrevious={workoutStepIndex > 0}
+            completedStepCount={completedTrainingStepCount}
             currentExercise={currentExercise}
-            currentExerciseIndex={workoutExerciseIndex}
+            currentExerciseIndex={currentStep?.exerciseIndex ?? 0}
+            currentSetIndex={currentStep?.setIndex ?? null}
+            currentStep={currentStep}
             currentWeek={progress.currentWeek}
             exerciseCount={selectedExercisePlans.length}
-            isLastExercise={workoutExerciseIndex === selectedExercisePlans.length - 1}
+            isLastStep={nextTrainingStep == null}
             isWorkoutComplete={isWorkoutComplete}
             lastExerciseDate={latestExerciseLog?.calendarDate ?? null}
             lastExerciseRpe={latestExerciseLog?.rpe ?? null}
@@ -784,18 +958,17 @@ function App() {
                   )
                 : null
             }
-            nextExerciseName={selectedExercisePlans[workoutExerciseIndex + 1]?.name ?? null}
-            notificationEnabled={notificationsEnabled}
-            onAdvance={() =>
-              setWorkoutExerciseIndex((currentValue) =>
-                Math.min(currentValue + 1, selectedExercisePlans.length)
-              )
+            nextExerciseName={
+              nextTrainingStep
+                ? selectedExercisePlans[nextTrainingStep.exerciseIndex]?.name ?? null
+                : null
             }
+            nextStep={nextTrainingStep}
+            notificationEnabled={notificationsEnabled}
+            onAdvance={advanceWorkoutStep}
             onApplyRecommendation={handleApplyRecommendation}
             onCompleteWorkout={() => handleMarkCompleted(selectedDayId)}
-            onGoPrevious={() =>
-              setWorkoutExerciseIndex((currentValue) => Math.max(currentValue - 1, 0))
-            }
+            onGoPrevious={() => setWorkoutStepIndex((currentValue) => Math.max(currentValue - 1, 0))}
             onKeepRecommendation={handleKeepRecommendation}
             onRestTimerComplete={handleRestTimerComplete}
             onSetFeltArea={handleFeltAreaChange}
@@ -803,8 +976,10 @@ function App() {
             onSetWeightUnit={handleWeightUnitChange}
             onSetWeightValue={handleWeightValueChange}
             onToggleSet={handleToggleSet}
+            roundSummary={selectedTrainingMode === "alternated" ? currentRoundSummary : null}
             sparklinePoints={sparklinePoints}
             state={currentExerciseState}
+            totalStepCount={selectedTrainingSequence.length}
             workout={selectedWorkout}
           />
         );
@@ -835,12 +1010,13 @@ function App() {
     }
   };
 
-  const showBottomNav = activeScreen !== "checkin" && activeScreen !== "workout";
+  const showBottomNav =
+    !isTrainingModeSetupRequired && activeScreen !== "checkin" && activeScreen !== "workout";
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-graphite-950 text-fog-100">
       <div className="relative mx-auto flex min-h-screen max-w-[430px] flex-col px-4 pb-32 pt-[calc(env(safe-area-inset-top)+18px)]">
-        {activeScreen !== "home" && (
+        {!isTrainingModeSetupRequired && activeScreen !== "home" && (
           <header className="mb-6">
             <div className="frost-nav flex items-center justify-between px-4 py-3">
               <div>
@@ -858,10 +1034,21 @@ function App() {
           </header>
         )}
 
-        <main className="screen-enter flex-1">{renderScreen()}</main>
+        <main className="screen-enter flex-1">
+          {isTrainingModeSetupRequired ? (
+            <TrainingModeOnboardingScreen
+              onContinue={handleCompleteTrainingModeOnboarding}
+              onSelectMode={setTrainingModeDraft}
+              selectedMode={trainingModeDraft}
+            />
+          ) : (
+            renderScreen()
+          )}
+        </main>
       </div>
 
-      {activeScreen !== "home" &&
+      {!isTrainingModeSetupRequired &&
+        activeScreen !== "home" &&
         activeScreen !== "checkin" &&
         activeScreen !== "workout" && (
           <FloatingTodayButton todayDayId={todayDayId} onOpenToday={openToday} />
@@ -879,6 +1066,19 @@ function App() {
         cancelLabel="Cancelar"
         onConfirm={handleConfirmReset}
         onCancel={() => setResetSheetOpen(false)}
+      />
+
+      <TrainingModeSheet
+        currentMode={todayTrainingMode}
+        onClose={() => setTrainingModeSheetOpen(false)}
+        onSaveAsPreference={handleSaveTrainingModePreference}
+        onSelectMode={setTrainingModeDraft}
+        onUseForToday={handleUseTrainingModeForToday}
+        open={isTrainingModeSheetOpen}
+        preferenceMode={progress.trainingModePreference}
+        selectedMode={trainingModeDraft}
+        sessionLocked={todaySessionLocked}
+        todayMode={progress.trainingModeByWeek[currentWeekKey]?.[todayDayId] ?? null}
       />
     </div>
   );
